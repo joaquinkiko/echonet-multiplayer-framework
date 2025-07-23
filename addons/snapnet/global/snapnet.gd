@@ -43,6 +43,25 @@ func _ready() -> void:
 				transport.authentication_hash = arg.trim_prefix("--serverauth=").sha1_buffer()
 			if arg.begins_with("--clientuid="): 
 				local_uid = int(arg.trim_prefix("--clientuid="))
+		if OS.has_feature("editor"):
+			if arg.begins_with("--tile="):
+				var pos := int(arg.trim_prefix("--tile="))
+				var window := get_window()
+				window.size = DisplayServer.screen_get_size() / 2
+				window.size.y -= 30
+				match pos:
+					0:
+						window.position.x = 0
+						window.position.y = 30
+					1:
+						window.position.x = 0
+						window.position.y = 30 + DisplayServer.screen_get_size().y / 2
+					2:
+						window.position.x = DisplayServer.screen_get_size().x / 2
+						window.position.y = 30
+					3:
+						window.position.x = DisplayServer.screen_get_size().x / 2
+						window.position.y = 30 + DisplayServer.screen_get_size().y / 2
 	# Headless Server Check
 	if OS.has_feature("Server"):
 		transport.init_headless_server()
