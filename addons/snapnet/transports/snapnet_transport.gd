@@ -350,7 +350,7 @@ func handle_packet(packet: SnapnetPacket) -> void:
 				on_chat_received.emit(packet.text, client_peers.get(packet.original_sender_id, null))
 		SnapnetPacket.PacketType.ADMIN_UPDATE:
 			packet = AdminUpdatePacket.new_remote(packet)
-			client_peers[packet.id].is_admin = packet.promotion
+			if client_peers.has(packet.id): client_peers[packet.id].is_admin = packet.promotion
 		_:
 			push_error("Unrecognized packet type: ", packet.type)
 
@@ -570,3 +570,7 @@ func update_admin_status(peer: SnapnetPeer, promote: bool = true) -> void:
 	peer.is_admin = promote
 	var admin_update_packet := AdminUpdatePacket.new(peer.id, promote)
 	server_broadcast(admin_update_packet, 0, true)
+
+## Call at regular intervals to gather statistics in array
+## 0:data in	1:data out	2:packets in	3:packets out	4:server rtt
+func gather_statistics() -> PackedInt32Array: return [0,0,0,0,0]

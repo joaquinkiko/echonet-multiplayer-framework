@@ -216,3 +216,22 @@ func server_authentication_timeout(peer: ENetPacketPeer) -> void:
 		if !_unverified_enet_peers.has(peer): return
 		await Engine.get_main_loop().process_frame
 	if peer != null: peer.peer_disconnect(DisconnectReason.KICKED)
+
+func gather_statistics() -> PackedInt32Array:
+	if connection == null: return super.gather_statistics()
+	if !is_server && enet_server_peer != null:
+		return [
+			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_DATA)),
+			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_DATA)),
+			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_PACKETS)),
+			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_PACKETS)),
+			int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+		]
+	else:
+		return [
+			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_DATA)),
+			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_DATA)),
+			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_PACKETS)),
+			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_PACKETS)),
+			0
+		]
