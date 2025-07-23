@@ -1,8 +1,13 @@
-[gd_scene load_steps=2 format=3 uid="uid://bfawxnxbdctgk"]
+[gd_scene load_steps=3 format=3 uid="uid://bfawxnxbdctgk"]
 
 [ext_resource type="Script" uid="uid://d0at6ffl4i20i" path="res://addons/snapnet/global/snapnet_debug.gd" id="1_a7dqu"]
 
+[sub_resource type="Theme" id="Theme_a7dqu"]
+Label/colors/font_color = Color(1, 1, 0.505882, 1)
+Label/constants/outline_size = 5
+
 [node name="SnapnetDebug" type="Control"]
+z_index = 500
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -11,12 +16,114 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_a7dqu")
 
-[node name="StatisticsLabel" type="RichTextLabel" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-scroll_active = false
-vertical_alignment = 2
+[node name="Statistics" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+theme = SubResource("Theme_a7dqu")
+
+[node name="Status" type="Label" parent="Statistics"]
+layout_mode = 2
+text = "Status"
+
+[node name="Address" type="Label" parent="Statistics"]
+layout_mode = 2
+text = "Status"
+
+[node name="Data" type="HBoxContainer" parent="Statistics"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Statistics/Data"]
+layout_mode = 2
+text = "Data in/out"
+
+[node name="Spacer" type="Control" parent="Statistics/Data"]
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+
+[node name="In" type="Label" parent="Statistics/Data"]
+custom_minimum_size = Vector2(92, 0)
+layout_mode = 2
+
+[node name="VSeparator" type="VSeparator" parent="Statistics/Data"]
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+
+[node name="Out" type="Label" parent="Statistics/Data"]
+custom_minimum_size = Vector2(64, 0)
+layout_mode = 2
+
+[node name="Packets" type="HBoxContainer" parent="Statistics"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Statistics/Packets"]
+layout_mode = 2
+text = "Packets in/out"
+
+[node name="Spacer" type="Control" parent="Statistics/Packets"]
+custom_minimum_size = Vector2(17, 0)
+layout_mode = 2
+
+[node name="In" type="Label" parent="Statistics/Packets"]
+custom_minimum_size = Vector2(92, 0)
+layout_mode = 2
+
+[node name="VSeparator" type="VSeparator" parent="Statistics/Packets"]
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+
+[node name="Out" type="Label" parent="Statistics/Packets"]
+custom_minimum_size = Vector2(64, 0)
+layout_mode = 2
+
+[node name="RTT" type="HBoxContainer" parent="Statistics"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Statistics/RTT"]
+layout_mode = 2
+text = "Server RTT"
+
+[node name="Spacer" type="Control" parent="Statistics/RTT"]
+custom_minimum_size = Vector2(41, 0)
+layout_mode = 2
+
+[node name="Msec" type="Label" parent="Statistics/RTT"]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+
+[node name="Throttle" type="HBoxContainer" parent="Statistics"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Statistics/Throttle"]
+layout_mode = 2
+text = "Server Throttle"
+
+[node name="Spacer" type="Control" parent="Statistics/Throttle"]
+custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+
+[node name="Value" type="Label" parent="Statistics/Throttle"]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+
+[node name="Loss" type="HBoxContainer" parent="Statistics"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Statistics/Loss"]
+layout_mode = 2
+text = "Server Loss"
+
+[node name="Spacer" type="Control" parent="Statistics/Loss"]
+custom_minimum_size = Vector2(36, 0)
+layout_mode = 2
+
+[node name="Value" type="Label" parent="Statistics/Loss"]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Statistics"]
+layout_mode = 2
+text = "Clients:"
+
+[node name="Clients" type="Label" parent="Statistics"]
+layout_mode = 2

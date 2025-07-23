@@ -225,7 +225,9 @@ func gather_statistics() -> PackedInt32Array:
 			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_DATA)),
 			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_PACKETS)),
 			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_PACKETS)),
-			int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+			int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME)),
+			int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE)),
+			int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS)),
 		]
 	else:
 		return [
@@ -233,5 +235,5 @@ func gather_statistics() -> PackedInt32Array:
 			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_DATA)),
 			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_PACKETS)),
 			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_PACKETS)),
-			0
+			0, 32, 0
 		]

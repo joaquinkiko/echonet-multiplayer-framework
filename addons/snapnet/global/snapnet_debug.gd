@@ -1,25 +1,122 @@
 ## Optional global class for monitoring and debugging Snapnet Multiplayer
 extends Node
 
-@onready var statistics_label: RichTextLabel = $StatisticsLabel
+const SHOULD_TILE_IN_EDITOR := true
 
-var statistics := PackedInt32Array([0,0,0,0,0])
+@onready var statistics_control: Control = $Statistics
+@onready var label_status: Label = $Statistics/Status
+@onready var label_address: Label = $Statistics/Address
+@onready var label_data_in: Label = $Statistics/Data/In
+@onready var label_data_out: Label = $Statistics/Data/Out
+@onready var label_packets_in: Label = $Statistics/Packets/In
+@onready var label_packets_out: Label = $Statistics/Packets/Out
+@onready var label_rtt: Label = $Statistics/RTT/Msec
+@onready var label_throttle: Label = $Statistics/Throttle/Value
+@onready var label_loss: Label = $Statistics/Loss/Value
+@onready var label_clients: Label = $Statistics/Clients
 
-## Next msec to update monitor process
+## Array of seven server statistics sorted as
+## 0:data in	1:data out	2:packets in	3:packets out	4:rtt	5:throttle	6:packet loss
+var statistics := PackedInt32Array([0,0,0,0,0,0,0])
+
 var _next_monitor_update_msec := 0
+var _instance_num := -1
+var _instance_socket: TCPServer 
 
-func _ready() -> void: pass
+func _init() -> void:
+	if !OS.is_debug_build():
+		queue_free()
+		return
+	_instance_socket = TCPServer.new()
+	for n in range(0,4):
+		if _instance_socket.listen(5000 + n) == OK:
+			_instance_num = n
+			break
+
+func _ready() -> void:
+	# Tile windows in editor
+	if SHOULD_TILE_IN_EDITOR && OS.has_feature("editor"):
+		var window := get_window()
+		var screen_i := DisplayServer.window_get_current_screen()
+		var screen := DisplayServer.screen_get_usable_rect(screen_i)
+		var y_mod := DisplayServer.window_get_size_with_decorations().y - DisplayServer.window_get_size().y - 10
+		window.size = DisplayServer.screen_get_usable_rect(screen_i).size / 2
+		window.size.y -= y_mod
+		match _instance_num:
+			0:
+				window.position.x = screen.position.x
+				window.position.y = screen.position.y + y_mod
+			1:
+				window.position.x = screen.position.x + window.size.x
+				window.position.y = screen.position.y + y_mod
+			2:
+				window.position.x = screen.position.x
+				window.position.y = screen.position.y + y_mod * 2 + window.size.y
+			3:
+				window.position.x = screen.position.x + window.size.x
+				window.position.y = screen.position.y + y_mod * 2 + window.size.y
+	# Run launch args
+	var args := OS.get_cmdline_args()
+	for arg in args:
+		if arg.begins_with("--transport="):
+			match arg.trim_prefix("--transport="):
+				"local": Snapnet.transport=LocalTransport.new()
+				"enet": Snapnet.transport=ENetTransport.new()
+		if arg.begins_with("--nickname="): 
+			Snapnet.local_nickname = arg.trim_prefix("--nickname=")
+		if arg.begins_with("--servername="): 
+			Snapnet.transport.server_name = arg.trim_prefix("--servername=")
+		if arg.begins_with("--maxpeers="): 
+			Snapnet.transport.max_peers = int(arg.trim_prefix("--maxpeers="))
+		if arg.begins_with("--serverpassword="): 
+			Snapnet.transport.password = arg.trim_prefix("--serverpassword=").sha1_buffer()
+		if arg.begins_with("--serverauth="): 
+			Snapnet.transport.authentication_hash = arg.trim_prefix("--serverauth=").sha1_buffer()
+		if arg.begins_with("--clientuid="): 
+			Snapnet.local_uid = int(arg.trim_prefix("--clientuid="))
+	if args.has("--server"):
+		if args.has("--headless"): Snapnet.transport.init_headless_server()
+		else: Snapnet.transport.init_server()
+	elif args.has("--client"): Snapnet.transport.init_client()
 
 func _process(delta: float) -> void:
 	if Time.get_ticks_msec() >= _next_monitor_update_msec:
 		var data := Snapnet.transport.gather_statistics()
-		for n in 5: statistics[n] = data[n]
-		statistics_label.text = """
-		Data in/out:\t\t\t%s/s\t|\t%s/s
-		Packets in/out:\t\t%s/s\t\t|\t%s/s
-		Server RTT:\t\t\t%smsec
-		"""%[
-			String.humanize_size(data[0]), String.humanize_size(data[1]),
-			data[2], data[3], data[4]
-		]
+		for n in 7: statistics[n] = data[n]
+		label_data_in.text = "%s/s"%String.humanize_size(data[0])
+		label_data_out.text = "%s/s"%String.humanize_size(data[1])
+		label_packets_in.text = "%s/s"%data[2]
+		label_packets_out.text = "%s/s"%data[3]
+		label_rtt.text = "%smsec"%data[4]
+		label_throttle.text = "%s%%"%int((data[5] / 32.0) * 100)
+		label_loss.text = "%s"%data[6]
+		
+		if Snapnet.transport.is_connected:
+			if Snapnet.transport.connection_successful:
+				if Snapnet.transport.is_server: 
+					label_status.text = "Server (%s) (%s/%s)"%[Snapnet.transport.server_name,
+						Snapnet.transport.client_peers.size(),
+						Snapnet.transport.max_peers]
+					if !Snapnet.transport.is_joinable: label_status.text += " Private"
+				elif Snapnet.transport.is_client: 
+					label_status.text = "Client (%s) (%s/%s)"%[Snapnet.transport.server_name,
+						Snapnet.transport.client_peers.size(),
+						Snapnet.transport.max_peers]
+					if !Snapnet.transport.is_joinable: label_status.text += " Private"
+				else: label_status.text = "Non-player Client"
+			else: label_status.text = "Connecting..."
+		else: label_status.text = "Offline"
+		if Snapnet.transport is ENetTransport:
+			label_address.text = "%s:%s"%[Snapnet.transport.ip, Snapnet.transport.port]
+		else:
+			label_address.text = ""
+		
+		if Snapnet.transport.is_connected:
+			label_clients.text = ""
+			for client in Snapnet.transport.client_peers.values():
+				if client.is_server: label_clients.text += "(S)"
+				elif client.is_admin: label_clients.text += "(A)"
+				label_clients.text += "%s (%s)\n"%[client.nickname, client.uid]
+		else: label_clients.text = ""
+		
 		_next_monitor_update_msec = Time.get_ticks_msec() + 1000

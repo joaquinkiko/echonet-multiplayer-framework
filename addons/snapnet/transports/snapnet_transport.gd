@@ -572,5 +572,5 @@ func update_admin_status(peer: SnapnetPeer, promote: bool = true) -> void:
 	server_broadcast(admin_update_packet, 0, true)
 
 ## Call at regular intervals to gather statistics in array
-## 0:data in	1:data out	2:packets in	3:packets out	4:server rtt
-func gather_statistics() -> PackedInt32Array: return [0,0,0,0,0]
+## 0:data in	1:data out	2:packets in	3:packets out	4:rtt	5:throttle	6:packet loss
+func gather_statistics() -> PackedInt32Array: return [0,0,0,0,0,0,0]
