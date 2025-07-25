@@ -1,5 +1,5 @@
 ## Represents a currently connected client
-class_name SnapnetPeer extends RefCounted
+class_name EchonetPeer extends RefCounted
 
 ## Client ID on server-- Server will always be 1
 var id: int:
@@ -12,7 +12,7 @@ var is_server: bool:
 	set(value): push_error("'is_server' cannot be set directly")
 ## Returns true if this is the local client
 var is_self: bool:
-	get: return Snapnet.transport.local_id == id
+	get: return Echonet.transport.local_id == id
 	set(value): push_error("'is_self' cannot be set directly")
 
 ## Nickname of client
@@ -38,12 +38,12 @@ func _to_string() -> String:
 	else: return nickname
 
 ## Creates new Client-Server instance
-static func create_server() -> SnapnetPeer:
-	var peer := SnapnetPeer.new(1)
+static func create_server() -> EchonetPeer:
+	var peer := EchonetPeer.new(1)
 	peer.is_admin = true
 	return peer
 
 ## Creates a new Client instance
-static func create_client(client_id: int = 0) -> SnapnetPeer:
-	var peer := SnapnetPeer.new(client_id)
+static func create_client(client_id: int = 0) -> EchonetPeer:
+	var peer := EchonetPeer.new(client_id)
 	return peer

@@ -1,5 +1,5 @@
 ## Handles delivering info about the server
-class_name ServerInfoPacket extends SnapnetPacket
+class_name ServerInfoPacket extends EchonetPacket
 
 ## Current status of server
 enum ServerStatus {
@@ -24,8 +24,8 @@ func _init(_server_name := "", _current_peers := 0, _max_peers := 0, _server_sta
 	max_peers = _max_peers
 	server_status = _server_status
 
-## Transforms generic [SnapnetPacket] for use after being received from remote peer
-static func new_remote(packet: SnapnetPacket) -> ServerInfoPacket:
+## Transforms generic [EchonetPacket] for use after being received from remote peer
+static func new_remote(packet: EchonetPacket) -> ServerInfoPacket:
 	var output := ServerInfoPacket.new()
 	output.data = packet.data
 	output.sender = packet.sender

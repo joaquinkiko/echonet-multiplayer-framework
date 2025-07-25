@@ -1,4 +1,4 @@
-## Global Snapnet multiplayer manager
+## Global Echonet multiplayer manager
 extends Node
 
 ## Maximum characters for user nickname
@@ -10,13 +10,13 @@ var local_nickname: String = ""
 ## Local user's UID to share over network (could be SteamID or custom login uid)
 var local_uid: int = 0
 
-## [SnapnetTransport] currently in use-- defaults to [LocalTransport]
-var transport: SnapnetTransport:
+## [EchonetTransport] currently in use-- defaults to [LocalTransport]
+var transport: EchonetTransport:
 	get: return _transport
 	set(value): 
 		if value == null: _transport = LocalTransport.new()
 		else: _transport = value
-var _transport: SnapnetTransport = LocalTransport.new()
+var _transport: EchonetTransport = LocalTransport.new()
 
 func _init() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS

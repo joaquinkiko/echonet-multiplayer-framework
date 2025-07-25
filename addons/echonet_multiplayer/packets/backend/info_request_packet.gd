@@ -1,5 +1,5 @@
 ## Handles making special requests for data from the server
-class_name InfoRequestPacket extends SnapnetPacket
+class_name InfoRequestPacket extends EchonetPacket
 
 ## Type of data being requested
 enum RequestType {
@@ -13,8 +13,8 @@ func _init(_request_type := RequestType.SERVER_INFO) -> void:
 	type = PacketType.INFO_REQUEST
 	request_type = _request_type
 
-## Transforms generic [SnapnetPacket] for use after being received from remote peer
-static func new_remote(packet: SnapnetPacket) -> InfoRequestPacket:
+## Transforms generic [EchonetPacket] for use after being received from remote peer
+static func new_remote(packet: EchonetPacket) -> InfoRequestPacket:
 	var output := InfoRequestPacket.new()
 	output.data = packet.data
 	output.sender = packet.sender

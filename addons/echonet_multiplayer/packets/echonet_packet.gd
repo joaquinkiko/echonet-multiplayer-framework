@@ -1,5 +1,5 @@
 ## Base class used by network packets
-class_name SnapnetPacket extends RefCounted
+class_name EchonetPacket extends RefCounted
 
 ## Packet signature with value from 0-255
 enum PacketType {
@@ -17,8 +17,8 @@ enum PacketType {
 ## [PacketType] to sign first byte of packet with
 var type: PacketType = PacketType.UNKNOWN
 
-## [SnapnetPeer] that sent packet
-var sender: SnapnetPeer
+## [EchonetPeer] that sent packet
+var sender: EchonetPeer
 
 ## Raw encoded data of packet
 var data := PackedByteArray([])

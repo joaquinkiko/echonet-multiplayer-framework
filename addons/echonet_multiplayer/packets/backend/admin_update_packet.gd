@@ -1,5 +1,5 @@
 ## Handles notifying of client promotions and demotions
-class_name AdminUpdatePacket extends SnapnetPacket
+class_name AdminUpdatePacket extends EchonetPacket
 
 var id: int
 var promotion: bool
@@ -9,8 +9,8 @@ func _init(_id: int = 0, _promotion: bool = true) -> void:
 	id = _id
 	promotion = _promotion
 
-## Transforms generic [SnapnetPacket] for use after being received from remote peer
-static func new_remote(packet: SnapnetPacket) -> AdminUpdatePacket:
+## Transforms generic [EchonetPacket] for use after being received from remote peer
+static func new_remote(packet: EchonetPacket) -> AdminUpdatePacket:
 	var output := AdminUpdatePacket.new()
 	output.data = packet.data
 	output.sender = packet.sender

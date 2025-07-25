@@ -1,4 +1,4 @@
-## Optional global class for monitoring and debugging Snapnet Multiplayer
+## Optional global class for monitoring and debugging Echonet Multiplayer
 extends Node
 
 const SHOULD_TILE_IN_EDITOR := true
@@ -60,28 +60,28 @@ func _ready() -> void:
 	for arg in args:
 		if arg.begins_with("--transport="):
 			match arg.trim_prefix("--transport="):
-				"local": Snapnet.transport=LocalTransport.new()
-				"enet": Snapnet.transport=ENetTransport.new()
+				"local": Echonet.transport=LocalTransport.new()
+				"enet": Echonet.transport=ENetTransport.new()
 		if arg.begins_with("--nickname="): 
-			Snapnet.local_nickname = arg.trim_prefix("--nickname=")
+			Echonet.local_nickname = arg.trim_prefix("--nickname=")
 		if arg.begins_with("--servername="): 
-			Snapnet.transport.server_name = arg.trim_prefix("--servername=")
+			Echonet.transport.server_name = arg.trim_prefix("--servername=")
 		if arg.begins_with("--maxpeers="): 
-			Snapnet.transport.max_peers = int(arg.trim_prefix("--maxpeers="))
+			Echonet.transport.max_peers = int(arg.trim_prefix("--maxpeers="))
 		if arg.begins_with("--serverpassword="): 
-			Snapnet.transport.password = arg.trim_prefix("--serverpassword=").sha1_buffer()
+			Echonet.transport.password = arg.trim_prefix("--serverpassword=").sha1_buffer()
 		if arg.begins_with("--serverauth="): 
-			Snapnet.transport.authentication_hash = arg.trim_prefix("--serverauth=").sha1_buffer()
+			Echonet.transport.authentication_hash = arg.trim_prefix("--serverauth=").sha1_buffer()
 		if arg.begins_with("--clientuid="): 
-			Snapnet.local_uid = int(arg.trim_prefix("--clientuid="))
+			Echonet.local_uid = int(arg.trim_prefix("--clientuid="))
 	if args.has("--server"):
-		if args.has("--headless"): Snapnet.transport.init_headless_server()
-		else: Snapnet.transport.init_server()
-	elif args.has("--client"): Snapnet.transport.init_client()
+		if args.has("--headless"): Echonet.transport.init_headless_server()
+		else: Echonet.transport.init_server()
+	elif args.has("--client"): Echonet.transport.init_client()
 
 func _process(delta: float) -> void:
 	if Time.get_ticks_msec() >= _next_monitor_update_msec:
-		var data := Snapnet.transport.gather_statistics()
+		var data := Echonet.transport.gather_statistics()
 		for n in 7: statistics[n] = data[n]
 		label_data_in.text = "%s/s"%String.humanize_size(data[0])
 		label_data_out.text = "%s/s"%String.humanize_size(data[1])
@@ -91,29 +91,29 @@ func _process(delta: float) -> void:
 		label_throttle.text = "%s%%"%int((data[5] / 32.0) * 100)
 		label_loss.text = "%s"%data[6]
 		
-		if Snapnet.transport.is_connected:
-			if Snapnet.transport.connection_successful:
-				if Snapnet.transport.is_server: 
-					label_status.text = "Server (%s) (%s/%s)"%[Snapnet.transport.server_name,
-						Snapnet.transport.client_peers.size(),
-						Snapnet.transport.max_peers]
-					if !Snapnet.transport.is_joinable: label_status.text += " Private"
-				elif Snapnet.transport.is_client: 
-					label_status.text = "Client (%s) (%s/%s)"%[Snapnet.transport.server_name,
-						Snapnet.transport.client_peers.size(),
-						Snapnet.transport.max_peers]
-					if !Snapnet.transport.is_joinable: label_status.text += " Private"
+		if Echonet.transport.is_connected:
+			if Echonet.transport.connection_successful:
+				if Echonet.transport.is_server: 
+					label_status.text = "Server (%s) (%s/%s)"%[Echonet.transport.server_name,
+						Echonet.transport.client_peers.size(),
+						Echonet.transport.max_peers]
+					if !Echonet.transport.is_joinable: label_status.text += " Private"
+				elif Echonet.transport.is_client: 
+					label_status.text = "Client (%s) (%s/%s)"%[Echonet.transport.server_name,
+						Echonet.transport.client_peers.size(),
+						Echonet.transport.max_peers]
+					if !Echonet.transport.is_joinable: label_status.text += " Private"
 				else: label_status.text = "Non-player Client"
 			else: label_status.text = "Connecting..."
 		else: label_status.text = "Offline"
-		if Snapnet.transport is ENetTransport:
-			label_address.text = "%s:%s"%[Snapnet.transport.ip, Snapnet.transport.port]
+		if Echonet.transport is ENetTransport:
+			label_address.text = "%s:%s"%[Echonet.transport.ip, Echonet.transport.port]
 		else:
 			label_address.text = ""
 		
-		if Snapnet.transport.is_connected:
+		if Echonet.transport.is_connected:
 			label_clients.text = ""
-			for client in Snapnet.transport.client_peers.values():
+			for client in Echonet.transport.client_peers.values():
 				if client.is_server: label_clients.text += "(S)"
 				elif client.is_admin: label_clients.text += "(A)"
 				label_clients.text += "%s (%s)\n"%[client.nickname, client.uid]

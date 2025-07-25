@@ -1,5 +1,5 @@
 ## Handles authentication data when client first connects to server
-class_name AuthenticationPacket extends SnapnetPacket
+class_name AuthenticationPacket extends EchonetPacket
 
 ## Peer's nickname
 var nickname: String
@@ -13,14 +13,14 @@ var auth_hash: PackedByteArray
 func _init(_nickname := "", _uid := 0, _password := PackedByteArray([]), _auth_hash := PackedByteArray([])) -> void:
 	type = PacketType.AUTHENTICATION
 	nickname = _nickname
-	if nickname.length() > Snapnet.MAX_NICKNAME_SIZE:
-		nickname = nickname.to_ascii_buffer().slice(0, Snapnet.MAX_NICKNAME_SIZE - 1).get_string_from_ascii()
+	if nickname.length() > Echonet.MAX_NICKNAME_SIZE:
+		nickname = nickname.to_ascii_buffer().slice(0, Echonet.MAX_NICKNAME_SIZE - 1).get_string_from_ascii()
 	uid = _uid
 	password = _password
 	auth_hash = _auth_hash
 
-## Transforms generic [SnapnetPacket] for use after being received from remote peer
-static func new_remote(packet: SnapnetPacket) -> AuthenticationPacket:
+## Transforms generic [EchonetPacket] for use after being received from remote peer
+static func new_remote(packet: EchonetPacket) -> AuthenticationPacket:
 	var output := AuthenticationPacket.new()
 	output.data = packet.data
 	output.sender = packet.sender

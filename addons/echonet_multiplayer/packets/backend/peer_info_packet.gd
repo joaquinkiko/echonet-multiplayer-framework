@@ -1,5 +1,5 @@
 ## Handles info about client peers such as nicknames and UIDs
-class_name PeerInfoPacket extends SnapnetPacket
+class_name PeerInfoPacket extends EchonetPacket
 
 ## Nicknames sorted by client id
 var nicknames: Dictionary[int, String]
@@ -14,8 +14,8 @@ func _init(_nicknames: Dictionary[int, String] = {}, _uids: Dictionary[int, int]
 	uids = _uids
 	admins = _admins
 
-## Transforms generic [SnapnetPacket] for use after being received from remote peer
-static func new_remote(packet: SnapnetPacket) -> PeerInfoPacket:
+## Transforms generic [EchonetPacket] for use after being received from remote peer
+static func new_remote(packet: EchonetPacket) -> PeerInfoPacket:
 	var output := PeerInfoPacket.new()
 	output.data = packet.data
 	output.sender = packet.sender

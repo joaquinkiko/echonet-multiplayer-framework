@@ -1,6 +1,6 @@
 ## Handles delivering chat messages.
 ## Uses GZip compression on chat messages.
-class_name ChatPacket extends SnapnetPacket
+class_name ChatPacket extends EchonetPacket
 
 ## Max size of chat message, excess will be trimmed
 const MAX_CHAT_SIZE := 255
@@ -18,8 +18,8 @@ func _init(_receiver := 0, _original_sender_id := 0, _text := "") -> void:
 	original_sender_id = _original_sender_id
 	text = _text
 
-## Transforms generic [SnapnetPacket] for use after being received from remote peer
-static func new_remote(packet: SnapnetPacket) -> ChatPacket:
+## Transforms generic [EchonetPacket] for use after being received from remote peer
+static func new_remote(packet: EchonetPacket) -> ChatPacket:
 	var output := ChatPacket.new()
 	output.data = packet.data
 	output.sender = packet.sender

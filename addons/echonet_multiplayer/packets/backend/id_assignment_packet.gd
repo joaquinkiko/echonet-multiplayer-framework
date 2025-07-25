@@ -1,5 +1,5 @@
 ## Handles assigning IDs to newly connected peers
-class_name IDAssignmentPacket extends SnapnetPacket
+class_name IDAssignmentPacket extends EchonetPacket
 
 ## ID of newly connected peer
 var id: int
@@ -11,8 +11,8 @@ func _init(_id: int = -1, _remote_ids: PackedInt32Array = []) -> void:
 	id = _id
 	remote_ids = _remote_ids
 
-## Transforms generic [SnapnetPacket] for use after being received from remote peer
-static func new_remote(packet: SnapnetPacket) -> IDAssignmentPacket:
+## Transforms generic [EchonetPacket] for use after being received from remote peer
+static func new_remote(packet: EchonetPacket) -> IDAssignmentPacket:
 	var output := IDAssignmentPacket.new()
 	output.data = packet.data
 	output.sender = packet.sender

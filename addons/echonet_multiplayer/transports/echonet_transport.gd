@@ -1,5 +1,5 @@
 ## Generic class for networking transports-- do not use directly
-class_name SnapnetTransport extends RefCounted
+class_name EchonetTransport extends RefCounted
 
 ## Max Server Channels
 const MAX_CHANNELS := 2
@@ -39,24 +39,24 @@ signal on_peer_connected(peer_id: int)
 ## Called when remote peer disconnects from server
 signal on_peer_disconnecting(peer_id: int)
 ## Called when a new packet is received
-signal on_packet_received(packet: SnapnetPacket)
+signal on_packet_received(packet: EchonetPacket)
 
 ## Called when server info request is received as a non-client
 signal on_server_info_request_received(packet: ServerInfoPacket)
 
 ## Called when a chat message is received
-signal on_chat_received(message: String, sender: SnapnetPeer)
+signal on_chat_received(message: String, sender: EchonetPeer)
 
 ## List of connected client-peers sorted by id (including self)
-var client_peers: Dictionary[int, SnapnetPeer]:
+var client_peers: Dictionary[int, EchonetPeer]:
 	get: return _client_peers
 	set(value): push_error("'client_peers' cannot be set directly")
-var _client_peers: Dictionary[int, SnapnetPeer]
+var _client_peers: Dictionary[int, EchonetPeer]
 ## Server peer
-var server_peer: SnapnetPeer:
+var server_peer: EchonetPeer:
 	get: return _server_peer
 	set(value): push_error("'server_peer' cannot be set directly")
-var _server_peer: SnapnetPeer
+var _server_peer: EchonetPeer
 
 ## Local machine's peer id
 var local_id: int = -1
@@ -99,7 +99,7 @@ var _uid_whitelist := PackedInt64Array([])
 ## Name of current server
 var server_name: String:
 	get: 
-		if _server_name.is_empty(): return "%s's Server"%Snapnet.local_nickname
+		if _server_name.is_empty(): return "%s's Server"%Echonet.local_nickname
 		else: return _server_name
 	set(value): 
 		_server_name = value
@@ -137,9 +137,9 @@ func init_server() -> bool:
 	_is_connected = true
 	_is_server = true
 	_is_client = true
-	_server_peer = SnapnetPeer.create_server()
-	_server_peer.uid = Snapnet.local_uid
-	_server_peer.nickname = Snapnet.local_nickname
+	_server_peer = EchonetPeer.create_server()
+	_server_peer.uid = Echonet.local_uid
+	_server_peer.nickname = Echonet.local_nickname
 	_server_peer.info_received = true
 	local_id = 1
 	_client_peers = {1:server_peer}
@@ -169,7 +169,7 @@ func init_headless_server() -> bool:
 	is_joinable = true
 	_is_connected = true
 	_is_server = true
-	_server_peer = SnapnetPeer.create_server()
+	_server_peer = EchonetPeer.create_server()
 	local_id = 1
 	_client_peers = {}
 	_connection_successful = false
@@ -251,7 +251,7 @@ func _get_available_id() -> int:
 	return new_id
 
 ## Call when new peer connects-- assigns peer ID if none assigned yet
-func peer_connected(peer: SnapnetPeer) -> void:
+func peer_connected(peer: EchonetPeer) -> void:
 	if peer.id == 0: peer.id = _get_available_id()
 	_client_peers[peer.id] = peer
 	if is_server: 
@@ -267,7 +267,7 @@ func peer_disconnected(peer_id: int) -> void:
 	_client_peers.erase(peer_id)
 
 ## Call when peer's info is updated
-func peer_info_updated(peer: SnapnetPeer) -> void:
+func peer_info_updated(peer: EchonetPeer) -> void:
 	if peer.info_received:
 		pass
 	else:
@@ -279,23 +279,23 @@ func peer_info_updated(peer: SnapnetPeer) -> void:
 func handle_events() -> void: pass
 
 ## Handles receiving of packets
-func handle_packet(packet: SnapnetPacket) -> void:
+func handle_packet(packet: EchonetPacket) -> void:
 	on_packet_received.emit(packet)
 	match packet.type:
-		SnapnetPacket.PacketType.ID_ASSIGNMENT:
+		EchonetPacket.PacketType.ID_ASSIGNMENT:
 			if is_server: return
 			packet = IDAssignmentPacket.new_remote(packet)
 			if local_id == -1:
 				local_id = packet.id
 				for remote_id in packet.remote_ids:
-					peer_connected(SnapnetPeer.create_client(remote_id))
+					peer_connected(EchonetPeer.create_client(remote_id))
 			else:
-				peer_connected(SnapnetPeer.create_client(packet.id))
-		SnapnetPacket.PacketType.ID_UNASSIGNMENT:
+				peer_connected(EchonetPeer.create_client(packet.id))
+		EchonetPacket.PacketType.ID_UNASSIGNMENT:
 			if is_server: return
 			packet = IDUnassignmentPacket.new_remote(packet)
 			peer_disconnected(packet.id)
-		SnapnetPacket.PacketType.AUTHENTICATION:
+		EchonetPacket.PacketType.AUTHENTICATION:
 			if !is_server: return
 			packet = AuthenticationPacket.new_remote(packet)
 			if password.size() > 0 && packet.password != password:
@@ -306,7 +306,7 @@ func handle_packet(packet: SnapnetPacket) -> void:
 				processs_authentication(AuthenticationResult.FAILED_WHITELIST, packet)
 			else:
 				processs_authentication(AuthenticationResult.SUCCESS, packet)
-		SnapnetPacket.PacketType.SERVER_INFO:
+		EchonetPacket.PacketType.SERVER_INFO:
 			if is_server: return
 			if !_connection_successful: _connection_successful = true
 			packet = ServerInfoPacket.new_remote(packet)
@@ -324,7 +324,7 @@ func handle_packet(packet: SnapnetPacket) -> void:
 			if packet.server_status == ServerInfoPacket.ServerStatus.NON_JOINABLE:
 				is_joinable = false
 			else: is_joinable = true
-		SnapnetPacket.PacketType.PEER_INFO:
+		EchonetPacket.PacketType.PEER_INFO:
 			packet = PeerInfoPacket.new_remote(packet)
 			if is_server:
 				pass
@@ -335,7 +335,7 @@ func handle_packet(packet: SnapnetPacket) -> void:
 					client_peers[n].uid = packet.uids.get(n, 0)
 					client_peers[n].is_admin = packet.admins.get(n, false)
 					peer_info_updated(client_peers[n])
-		SnapnetPacket.PacketType.INFO_REQUEST:
+		EchonetPacket.PacketType.INFO_REQUEST:
 			packet = InfoRequestPacket.new_remote(packet)
 			if is_server:
 				packet = InfoRequestPacket.new_remote(packet)
@@ -343,34 +343,34 @@ func handle_packet(packet: SnapnetPacket) -> void:
 					send_server_info(packet)
 			else:
 				pass
-		SnapnetPacket.PacketType.CHAT:
+		EchonetPacket.PacketType.CHAT:
 			packet = ChatPacket.new_remote(packet)
 			if is_server: server_relay_message(packet)
 			else: 
 				on_chat_received.emit(packet.text, client_peers.get(packet.original_sender_id, null))
-		SnapnetPacket.PacketType.ADMIN_UPDATE:
+		EchonetPacket.PacketType.ADMIN_UPDATE:
 			packet = AdminUpdatePacket.new_remote(packet)
 			if client_peers.has(packet.id): client_peers[packet.id].is_admin = packet.promotion
 		_:
 			push_error("Unrecognized packet type: ", packet.type)
 
 ## Call to kick a peer
-func kick(peer: SnapnetPeer) -> void: pass
+func kick(peer: EchonetPeer) -> void: pass
 
 ## Server calls to broadcast to all clients
-func server_broadcast(packet: SnapnetPacket, channel: int = 0, reliable: bool = false): pass
+func server_broadcast(packet: EchonetPacket, channel: int = 0, reliable: bool = false): pass
 
 ## Server calls to send packet to specific client
-func server_message(peer: SnapnetPeer, packet: SnapnetPacket, channel: int = 0, reliable: bool = false): pass
+func server_message(peer: EchonetPeer, packet: EchonetPacket, channel: int = 0, reliable: bool = false): pass
 
 ## Client calls to send packet to server
-func client_message(packet: SnapnetPacket, channel: int = 0, reliable: bool = false): pass
+func client_message(packet: EchonetPacket, channel: int = 0, reliable: bool = false): pass
 
 ## Called by server when authentication packet is received
 func processs_authentication(result: AuthenticationResult, packet: AuthenticationPacket) -> void: pass
 
 ## Called by server when server info is requested by non-client
-func send_server_info(packet: SnapnetPacket) -> void: pass
+func send_server_info(packet: EchonetPacket) -> void: pass
 
 ## Returns [ServerInfoPacket] with up-to-date info
 func _create_server_info_packet() -> ServerInfoPacket:
@@ -381,7 +381,7 @@ func _create_server_info_packet() -> ServerInfoPacket:
 	return packet
 
 ## Sends chat message over the network-- if [param audience] is null, sends to all
-func send_chat(message: String, audience: SnapnetPeer = null) -> void:
+func send_chat(message: String, audience: EchonetPeer = null) -> void:
 	var chat_packet := ChatPacket.new(0, local_id, message)
 	if audience != null: chat_packet.receiver = audience.id
 	if is_server:
@@ -401,7 +401,7 @@ func send_chat(message: String, audience: SnapnetPeer = null) -> void:
 		client_message(chat_packet, 0, true)
 
 ## Server sends non-personal chat message to specific peer-- null to send to all
-func send_server_chat(message: String, audience: SnapnetPeer) -> void:
+func send_server_chat(message: String, audience: EchonetPeer) -> void:
 	if audience != null:
 		var chat_packet := ChatPacket.new(audience.id, 0, message)
 		if audience.is_server: on_chat_received.emit(chat_packet.text, null)
@@ -430,7 +430,7 @@ func server_relay_message(packet: ChatPacket) -> void:
 	elif client_peers.has(packet.receiver): server_message(client_peers[packet.receiver], packet, 0, true)
 
 ## Called when server command is received
-func handle_server_command(command: String, args: PackedStringArray, peer: SnapnetPeer) -> void:
+func handle_server_command(command: String, args: PackedStringArray, peer: EchonetPeer) -> void:
 	print("%s sent command: %s (%s)"%[peer, command, args])
 	match command:
 		"whisper":
@@ -554,19 +554,19 @@ func handle_server_command(command: String, args: PackedStringArray, peer: Snapn
 			send_server_chat("'%s' command unrecognized"%command, peer)
 
 ## Returns first client with matching nickname-- return null if not found
-func get_client_by_nickname(nickname: String) -> SnapnetPeer:
+func get_client_by_nickname(nickname: String) -> EchonetPeer:
 	for client in client_peers.values():
 		if client.nickname == nickname: return client
 	return null
 
 ## Returns first client with matching UID-- return null if not found
-func get_client_by_uid(uid: String) -> SnapnetPeer:
+func get_client_by_uid(uid: String) -> EchonetPeer:
 	for client in client_peers.values():
 		if client.uid == uid: return client
 	return null
 
 ## Updates admin status of a peer
-func update_admin_status(peer: SnapnetPeer, promote: bool = true) -> void:
+func update_admin_status(peer: EchonetPeer, promote: bool = true) -> void:
 	peer.is_admin = promote
 	var admin_update_packet := AdminUpdatePacket.new(peer.id, promote)
 	server_broadcast(admin_update_packet, 0, true)

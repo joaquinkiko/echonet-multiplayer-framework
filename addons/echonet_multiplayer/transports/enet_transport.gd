@@ -1,5 +1,5 @@
-## ENet based implementation of [SnapnetTransport]
-class_name ENetTransport extends SnapnetTransport
+## ENet based implementation of [EchonetTransport]
+class_name ENetTransport extends EchonetTransport
 
 ## Time for server to await authentication before kicking a peer
 const SERVER_AUTHENTICATION_TIMEOUT := 1500
@@ -114,8 +114,8 @@ func handle_events() -> void:
 					server_authentication_timeout(peer)
 				elif is_client:
 					var auth_packet := AuthenticationPacket.new(
-						Snapnet.local_nickname,
-						Snapnet.local_uid,
+						Echonet.local_nickname,
+						Echonet.local_uid,
 						password, 
 						authentication_hash
 						)
@@ -134,15 +134,15 @@ func handle_events() -> void:
 					return
 			ENetConnection.EVENT_RECEIVE:
 				if is_server:
-					var packet := SnapnetPacket.new()
+					var packet := EchonetPacket.new()
 					packet.sender = client_peers.get(peer.get_meta("id", -1), null)
 					if packet.sender == null:
-						packet.sender = SnapnetPeer.new(_unverified_enet_peers.find(peer))
+						packet.sender = EchonetPeer.new(_unverified_enet_peers.find(peer))
 					packet.data = peer.get_packet()
 					packet.decode()
 					handle_packet(packet)
 				else:
-					var packet := SnapnetPacket.new()
+					var packet := EchonetPacket.new()
 					packet.sender = server_peer
 					packet.data = peer.get_packet()
 					packet.decode()
@@ -150,23 +150,23 @@ func handle_events() -> void:
 		packet_event = connection.service()
 		event_type = packet_event[0]
 
-func kick(peer: SnapnetPeer) -> void:
+func kick(peer: EchonetPeer) -> void:
 	peer.get_meta("enet_peer").peer_disconnect(DisconnectReason.KICKED)
 
-func server_broadcast(packet: SnapnetPacket, channel: int = 0, reliable: bool = false):
+func server_broadcast(packet: EchonetPacket, channel: int = 0, reliable: bool = false):
 	if reliable:
 		connection.broadcast(channel, packet.encode(), ENetPacketPeer.FLAG_RELIABLE)
 	else:
 		connection.broadcast(channel, packet.encode(), ENetPacketPeer.FLAG_UNSEQUENCED)
 
-func server_message(peer: SnapnetPeer, packet: SnapnetPacket, channel: int = 0, reliable: bool = false):
+func server_message(peer: EchonetPeer, packet: EchonetPacket, channel: int = 0, reliable: bool = false):
 	var enet_peer: ENetPacketPeer = peer.get_meta("enet_peer")
 	if reliable:
 		enet_peer.send(channel, packet.encode(), ENetPacketPeer.FLAG_RELIABLE)
 	else:
 		enet_peer.send(channel, packet.encode(), ENetPacketPeer.FLAG_UNSEQUENCED)
 
-func client_message(packet: SnapnetPacket, channel: int = 0, reliable: bool = false):
+func client_message(packet: EchonetPacket, channel: int = 0, reliable: bool = false):
 	if reliable:
 		enet_server_peer.send(channel, packet.encode(), ENetPacketPeer.FLAG_RELIABLE)
 	else:
@@ -186,13 +186,13 @@ func processs_authentication(result: AuthenticationResult, packet: Authenticatio
 		AuthenticationResult.FAILED_WHITELIST:
 			peer.peer_disconnect(DisconnectReason.FAILED_AUTHENTICATION_WHITELIST)
 		AuthenticationResult.SUCCESS:
-			var snapnet_peer := SnapnetPeer.create_client(_get_available_id())
-			snapnet_peer.set_meta("enet_peer", peer)
-			peer.set_meta("id", snapnet_peer.id)
-			snapnet_peer.nickname = packet.nickname
-			snapnet_peer.uid = packet.uid
-			peer_connected(snapnet_peer)
-			server_message(snapnet_peer, _create_server_info_packet(), 0, true)
+			var Echonet_peer := EchonetPeer.create_client(_get_available_id())
+			Echonet_peer.set_meta("enet_peer", peer)
+			peer.set_meta("id", Echonet_peer.id)
+			Echonet_peer.nickname = packet.nickname
+			Echonet_peer.uid = packet.uid
+			peer_connected(Echonet_peer)
+			server_message(Echonet_peer, _create_server_info_packet(), 0, true)
 			var nickname_dict: Dictionary[int, String]
 			var uid_dict: Dictionary[int, int]
 			var admin_dict: Dictionary[int, bool]
@@ -206,7 +206,7 @@ func processs_authentication(result: AuthenticationResult, packet: Authenticatio
 			_unverified_enet_peers.erase(peer)
 			server_broadcast(peer_info_packet, 0, true)
 
-func send_server_info(packet: SnapnetPacket) -> void:
+func send_server_info(packet: EchonetPacket) -> void:
 	var peer: ENetPacketPeer = _unverified_enet_peers.get(packet.sender.id)
 	peer.send(0, _create_server_info_packet().encode(), ENetPacketPeer.FLAG_RELIABLE)
 

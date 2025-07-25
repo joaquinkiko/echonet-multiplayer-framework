@@ -1,5 +1,5 @@
 ## Handles notifying of disconnected peers
-class_name IDUnassignmentPacket extends SnapnetPacket
+class_name IDUnassignmentPacket extends EchonetPacket
 
 ## ID of disconnected peer
 var id: int
@@ -8,8 +8,8 @@ func _init(_id: int = -1) -> void:
 	type = PacketType.ID_UNASSIGNMENT
 	id = _id
 
-## Transforms generic [SnapnetPacket] for use after being received from remote peer
-static func new_remote(packet: SnapnetPacket) -> IDUnassignmentPacket:
+## Transforms generic [EchonetPacket] for use after being received from remote peer
+static func new_remote(packet: EchonetPacket) -> IDUnassignmentPacket:
 	var output := IDUnassignmentPacket.new()
 	output.data = packet.data
 	output.sender = packet.sender
