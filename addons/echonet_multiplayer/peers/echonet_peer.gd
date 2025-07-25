@@ -47,3 +47,9 @@ static func create_server() -> EchonetPeer:
 static func create_client(client_id: int = 0) -> EchonetPeer:
 	var peer := EchonetPeer.new(client_id)
 	return peer
+
+## Creates placeholder peer for when client info is unknown
+static func placeholder() -> EchonetPeer:
+	var peer := EchonetPeer.new(-1)
+	peer.nickname = "???"
+	return peer

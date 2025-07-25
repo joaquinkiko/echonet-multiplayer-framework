@@ -17,7 +17,7 @@ const SHOULD_TILE_IN_EDITOR := true
 
 ## Array of seven server statistics sorted as
 ## 0:data in	1:data out	2:packets in	3:packets out	4:rtt	5:throttle	6:packet loss
-var statistics := PackedInt32Array([0,0,0,0,0,0,0])
+var statistics := PackedInt64Array([0,0,0,0,0,0,0])
 
 var _next_monitor_update_msec := 0
 var _instance_num := -1
@@ -88,8 +88,8 @@ func _process(delta: float) -> void:
 		label_packets_in.text = "%s/s"%data[2]
 		label_packets_out.text = "%s/s"%data[3]
 		label_rtt.text = "%smsec"%data[4]
-		label_throttle.text = "%s%%"%int((data[5] / 32.0) * 100)
-		label_loss.text = "%s"%data[6]
+		label_throttle.text = "%s%%"%data[5]
+		label_loss.text = "%s%%"%data[6]
 		
 		if Echonet.transport.is_connected:
 			if Echonet.transport.connection_successful:

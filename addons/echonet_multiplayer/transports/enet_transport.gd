@@ -217,23 +217,17 @@ func server_authentication_timeout(peer: ENetPacketPeer) -> void:
 		await Engine.get_main_loop().process_frame
 	if peer != null: peer.peer_disconnect(DisconnectReason.KICKED)
 
-func gather_statistics() -> PackedInt32Array:
+func gather_statistics() -> PackedInt64Array:
 	if connection == null: return super.gather_statistics()
-	if !is_server && enet_server_peer != null:
-		return [
-			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_DATA)),
-			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_DATA)),
-			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_PACKETS)),
-			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_PACKETS)),
-			int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME)),
-			int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE)),
-			int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS)),
-		]
-	else:
-		return [
-			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_DATA)),
-			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_DATA)),
-			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_PACKETS)),
-			int(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_PACKETS)),
-			0, 32, 0
-		]
+	var data := PackedInt64Array([0,0,0,0,0,0,0])
+	data[0]  = int(connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_DATA))
+	data[1]  = int(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_DATA))
+	data[2]  = int(connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_PACKETS))
+	data[3]  = int(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_PACKETS))
+	if enet_server_peer == null: data[4] = 0
+	else: data[4] = int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+	if enet_server_peer == null: data[5] = 100
+	else: data[5] = int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE) / ENetPacketPeer.PACKET_THROTTLE_SCALE * 100)
+	if enet_server_peer == null: data[6] = 0
+	else: data[6] = int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS) / ENetPacketPeer.PACKET_LOSS_SCALE * 100)
+	return data

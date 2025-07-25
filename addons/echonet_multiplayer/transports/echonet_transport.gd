@@ -263,7 +263,7 @@ func peer_connected(peer: EchonetPeer) -> void:
 func peer_disconnected(peer_id: int) -> void:
 	on_peer_disconnecting.emit(peer_id)
 	if is_server: server_broadcast(IDUnassignmentPacket.new(peer_id))
-	print("Lost connection: ", client_peers[peer_id])
+	print("Lost connection: ", client_peers.get(peer_id, EchonetPeer.placeholder()))
 	_client_peers.erase(peer_id)
 
 ## Call when peer's info is updated
@@ -573,4 +573,4 @@ func update_admin_status(peer: EchonetPeer, promote: bool = true) -> void:
 
 ## Call at regular intervals to gather statistics in array
 ## 0:data in	1:data out	2:packets in	3:packets out	4:rtt	5:throttle	6:packet loss
-func gather_statistics() -> PackedInt32Array: return [0,0,0,0,0,0,0]
+func gather_statistics() -> PackedInt64Array: return [0,0,0,0,0,0,0]
