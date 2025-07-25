@@ -190,6 +190,23 @@ func processs_authentication(result: AuthenticationResult, packet: Authenticatio
 			Echonet_peer.set_meta("enet_peer", peer)
 			peer.set_meta("id", Echonet_peer.id)
 			Echonet_peer.nickname = packet.nickname
+			var existing_nicknames: PackedStringArray
+			for client in client_peers.values(): existing_nicknames.append(client.nickname)
+			if existing_nicknames.has(Echonet_peer.nickname):
+				var suffix: int = 0
+				var og_nickname := Echonet_peer.nickname
+				while existing_nicknames.has(Echonet_peer.nickname):
+					suffix += 1
+					if og_nickname.length() + 2 + str(suffix).length() > 32:
+						var overwrite := og_nickname.length() + 2 + str(suffix).length() - 32
+						var ascii_buffer := og_nickname.to_ascii_buffer()
+						ascii_buffer.resize(32 - overwrite)
+						og_nickname = ascii_buffer.get_string_from_ascii()
+					Echonet_peer.nickname = "%s(%s)"%[og_nickname, suffix]
+					if Echonet_peer.nickname.length() > 32:
+						var ascii_buffer := Echonet_peer.nickname.to_ascii_buffer()
+						ascii_buffer.resize(32)
+						Echonet_peer.nickname = ascii_buffer.get_string_from_ascii()
 			Echonet_peer.uid = packet.uid
 			peer_connected(Echonet_peer)
 			server_message(Echonet_peer, _create_server_info_packet(), 0, true)
