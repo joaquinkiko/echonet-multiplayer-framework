@@ -1,4 +1,4 @@
-## [EditorPlugin] for Snapnet Multiplayer Framework
+## Main [EditorPlugin] for Echonet Multiplayer Framework
 @tool
 extends EditorPlugin
 

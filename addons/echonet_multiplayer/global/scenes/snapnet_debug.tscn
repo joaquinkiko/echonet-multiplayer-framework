@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://bfawxnxbdctgk"]
 
-[ext_resource type="Script" uid="uid://d0at6ffl4i20i" path="res://addons/snapnet/global/snapnet_debug.gd" id="1_a7dqu"]
+[ext_resource type="Script" uid="uid://d0at6ffl4i20i" path="res://addons/echonet_multiplayer/global/snapnet_debug.gd" id="1_a7dqu"]
 
 [sub_resource type="Theme" id="Theme_a7dqu"]
 Label/colors/font_color = Color(1, 1, 0.505882, 1)

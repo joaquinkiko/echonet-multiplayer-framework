@@ -1,4 +1,4 @@
-# Snapnet Multiplayer Framework
+# Echonet Multiplayer Framework
 
 Reimplementation of Godot multiplayer with snapshot interpolation for fast and action based multiplayer.
 
