@@ -127,6 +127,9 @@ var connection_successful: bool:
 	set(value): push_error("'connection_successful' cannot be set directly")
 var _connection_successful: bool = false
 
+var _has_server_info: bool = false
+var _has_peer_info: bool = false
+
 ## Initialize connection as Client-Server
 func init_server() -> bool:
 	if is_connected:
@@ -144,6 +147,8 @@ func init_server() -> bool:
 	local_id = 1
 	_client_peers = {1:server_peer}
 	_connection_successful = false
+	_has_peer_info = true
+	_has_server_info = true
 	call_deferred("_check_for_successful_connection")
 	return true
 
@@ -157,6 +162,8 @@ func init_client() -> bool:
 	_is_client = true
 	_client_peers = {}
 	_connection_successful = false
+	_has_peer_info = false
+	_has_server_info = false
 	call_deferred("_check_for_successful_connection")
 	return true
 
@@ -173,6 +180,8 @@ func init_headless_server() -> bool:
 	local_id = 1
 	_client_peers = {}
 	_connection_successful = false
+	_has_peer_info = true
+	_has_server_info = true
 	call_deferred("_check_for_successful_connection")
 	return true
 
@@ -184,6 +193,8 @@ func init_server_info_request() -> bool:
 	print("Sending server info request...")
 	_is_connected = true
 	_connection_successful = false
+	_has_peer_info = false
+	_has_server_info = false
 	call_deferred("_check_for_successful_connection")
 	return true
 
@@ -221,7 +232,9 @@ func shutdown(reason: DisconnectReason = DisconnectReason.LOCAL_REQUEST) -> bool
 	_is_connected = false
 	_is_server = false
 	_is_client = false
-	_connection_successful
+	_connection_successful = false
+	_has_peer_info = false
+	_has_server_info = false
 	_client_peers.clear()
 	_server_peer = null
 	local_id = -1
@@ -233,7 +246,7 @@ func _check_for_successful_connection() -> void:
 	var timeout_time := Time.get_ticks_msec() + connection_timeout_msec
 	while Time.get_ticks_msec() < timeout_time:
 		if !is_connected: return
-		if _connection_successful:
+		if _connection_successful && _has_server_info && _has_peer_info:
 			print("Connected successfully!")
 			if is_server: on_server_initialized.emit()
 			if is_client: on_connected_to_server.emit()
@@ -309,6 +322,7 @@ func handle_packet(packet: EchonetPacket) -> void:
 		EchonetPacket.PacketType.SERVER_INFO:
 			if is_server: return
 			if !_connection_successful: _connection_successful = true
+			_has_server_info = true
 			packet = ServerInfoPacket.new_remote(packet)
 			if !is_client:
 				printt("Server Info: ",
@@ -329,6 +343,7 @@ func handle_packet(packet: EchonetPacket) -> void:
 			if is_server:
 				pass
 			else:
+				_has_peer_info = true
 				for n in packet.nicknames.keys():
 					if !client_peers.has(n): continue
 					client_peers[n].nickname = packet.nicknames[n]

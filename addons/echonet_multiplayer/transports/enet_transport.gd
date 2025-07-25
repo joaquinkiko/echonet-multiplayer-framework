@@ -224,10 +224,15 @@ func gather_statistics() -> PackedInt64Array:
 	data[1]  = int(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_DATA))
 	data[2]  = int(connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_PACKETS))
 	data[3]  = int(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_PACKETS))
-	if enet_server_peer == null: data[4] = 0
-	else: data[4] = int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
-	if enet_server_peer == null: data[5] = 100
-	else: data[5] = int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE) / ENetPacketPeer.PACKET_THROTTLE_SCALE * 100)
-	if enet_server_peer == null: data[6] = 0
-	else: data[6] = int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS) / ENetPacketPeer.PACKET_LOSS_SCALE * 100)
+	if enet_server_peer != null && enet_server_peer.is_active():
+		data[4] = int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+	else: data[4] = 0
+	if enet_server_peer != null && enet_server_peer.is_active():
+		data[5] = int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE) / 
+			ENetPacketPeer.PACKET_THROTTLE_SCALE * 100)
+	else: data[5] = 100
+	if enet_server_peer != null && enet_server_peer.is_active():
+		data[6] = int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS) / 
+			ENetPacketPeer.PACKET_LOSS_SCALE * 100)
+	else: data[6] = 0
 	return data
