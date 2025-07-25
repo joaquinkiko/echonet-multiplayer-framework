@@ -45,4 +45,5 @@ func decode() -> void:
 	super.decode()
 	receiver = data.decode_u8(1)
 	original_sender_id = data.decode_u8(2)
-	text = data.slice(4).decompress(data.decode_u16(3), FileAccess.COMPRESSION_GZIP).get_string_from_ascii()
+	if data.decode_u8(3) > 0:
+		text = data.slice(4).decompress(data.decode_u8(3), FileAccess.COMPRESSION_GZIP).get_string_from_ascii()
