@@ -37,7 +37,7 @@ var _port: int = 42069
 func init_server() -> bool:
 	if !super.init_server(): return false
 	connection = ENetConnection.new()
-	var error := connection.create_host_bound(ip, port, max_peers - 1, MAX_CHANNELS)
+	var error := connection.create_host_bound(ip, port, max_peers, MAX_CHANNELS)
 	if error:
 		print("Failed: ", error_string(error))
 		connection = null
@@ -73,7 +73,7 @@ func init_server_info_request() -> bool:
 func init_headless_server() -> bool:
 	if !super.init_headless_server(): return false
 	connection = ENetConnection.new()
-	var error := connection.create_host_bound(ip, port, max_peers, MAX_CHANNELS)
+	var error := connection.create_host_bound(ip, port, max_peers + 1, MAX_CHANNELS)
 	if error:
 		print("Failed: ", error_string(error))
 		connection = null
@@ -174,6 +174,9 @@ func processs_authentication(result: AuthenticationResult, packet: Authenticatio
 	if peer == null: return
 	if !is_joinable: 
 		peer.peer_disconnect(DisconnectReason.SERVER_PRIVATE)
+		return
+	if client_peers.size() >= max_peers:
+		peer.peer_disconnect(DisconnectReason.SERVER_FULL)
 		return
 	match result:
 		AuthenticationResult.FAILED_PASSWORD:
