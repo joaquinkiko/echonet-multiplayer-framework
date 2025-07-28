@@ -182,8 +182,14 @@ func processs_authentication(result: AuthenticationResult, packet: Authenticatio
 			peer.peer_disconnect(DisconnectReason.FAILED_AUTHENTICATION_HASH)
 		AuthenticationResult.FAILED_WHITELIST:
 			peer.peer_disconnect(DisconnectReason.FAILED_AUTHENTICATION_WHITELIST)
+		AuthenticationResult.FAILED_TO_GIVE_UID:
+			peer.peer_disconnect(DisconnectReason.FAILED_AUTHENTICATION_IDENTIFICATION)
+		AuthenticationResult.FAILED_BLACKLISTED:
+			peer.peer_disconnect(DisconnectReason.FAILED_AUTHENTICATION_BLACKLISTED)
 		AuthenticationResult.SUCCESS:
 			var Echonet_peer := EchonetPeer.create_client(_get_available_id())
+			if uid_admin_list.has(packet.uid):
+				Echonet_peer.is_admin = true
 			Echonet_peer.set_meta("enet_peer", peer)
 			peer.set_meta("id", Echonet_peer.id)
 			Echonet_peer.nickname = packet.nickname

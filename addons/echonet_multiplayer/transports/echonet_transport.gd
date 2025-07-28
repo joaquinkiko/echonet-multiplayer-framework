@@ -17,10 +17,14 @@ enum DisconnectReason {
 	FAILED_AUTHENTICATION_HASH = 6,
 	FAILED_AUTHENTICATION_PASSWORD = 7,
 	FAILED_AUTHENTICATION_WHITELIST = 8,
+	FAILED_AUTHENTICATION_IDENTIFICATION = 9,
+	FAILED_AUTHENTICATION_BLACKLISTED = 10,
 }
 
 ## Result of authentication attempt
 enum AuthenticationResult {
+	FAILED_BLACKLISTED = -4,
+	FAILED_TO_GIVE_UID = -3,
 	FAILED_WHITELIST = -2,
 	FAILED_PASSWORD = -1,
 	FAILED_HASH = 0,
@@ -95,6 +99,18 @@ var uid_whitelist : PackedInt64Array:
 		if is_connected: push_error("'uid_whitelist' must be set before connecting")
 		_uid_whitelist = value
 var _uid_whitelist := PackedInt64Array([])
+
+## List of UIDs that are blacklisted for server
+var uid_blacklist := PackedInt64Array([])
+
+## List of UIDs that are promoted to admin on joining server
+var uid_admin_list := PackedInt64Array([])
+
+## While false server will reject clients with no UID
+var allow_empty_uid: bool = true
+
+## While true admin promotions/demotions will be automatically recorded to [member uid_admin_list]
+var should_save_admin_status_changes: bool = true
 
 ## Name of current server
 var server_name: String:
@@ -229,6 +245,10 @@ func shutdown(reason: DisconnectReason = DisconnectReason.LOCAL_REQUEST) -> bool
 				print("Unable to connect-- server is whitelisted")
 			DisconnectReason.SERVER_PRIVATE:
 				print("Unable to connect-- server is rejecting new connections")
+			DisconnectReason.FAILED_AUTHENTICATION_IDENTIFICATION:
+				print("Failed to pass identity authentication")
+			DisconnectReason.FAILED_AUTHENTICATION_BLACKLISTED:
+				print("Disconnected due to server ban")
 	_is_connected = false
 	_is_server = false
 	_is_client = false
@@ -238,6 +258,9 @@ func shutdown(reason: DisconnectReason = DisconnectReason.LOCAL_REQUEST) -> bool
 	_client_peers.clear()
 	_server_peer = null
 	local_id = -1
+	uid_admin_list.clear()
+	uid_blacklist.clear()
+	uid_whitelist.clear()
 	on_disconnected.emit(reason)
 	return true
 
@@ -317,6 +340,10 @@ func handle_packet(packet: EchonetPacket) -> void:
 				processs_authentication(AuthenticationResult.FAILED_HASH, packet)
 			elif uid_whitelist.size() > 0 && !uid_whitelist.has(packet.uid):
 				processs_authentication(AuthenticationResult.FAILED_WHITELIST, packet)
+			elif packet.uid == 0 && allow_empty_uid == false:
+				processs_authentication(AuthenticationResult.FAILED_TO_GIVE_UID, packet)
+			elif uid_blacklist.has(packet.uid):
+				processs_authentication(AuthenticationResult.FAILED_BLACKLISTED, packet)
 			else:
 				processs_authentication(AuthenticationResult.SUCCESS, packet)
 		EchonetPacket.PacketType.SERVER_INFO:
@@ -493,6 +520,26 @@ func handle_server_command(command: String, args: PackedStringArray, peer: Echon
 				return
 			kick(target)
 			send_server_chat("Kicking '%s'"%args[0], peer)
+		"ban":
+			if !peer.is_admin:
+				send_server_chat("Error: Must be admin to ban peers", peer)
+				return
+			if args.size() < 1:
+				send_server_chat("Error: 'ban' must include argument", peer)
+				return
+			var target := get_client_by_nickname(args[0])
+			if target == null:
+				send_server_chat("Error: '%s' could not be found to 'ban'"%args[0], peer)
+				return
+			if target.is_self:
+				send_server_chat("Error: Cannot 'ban' self", peer)
+				return
+			if target.is_server:
+				send_server_chat("Error: Cannot 'ban' server", peer)
+				return
+			kick(target)
+			send_server_chat("Banning '%s'"%args[0], peer)
+			if target.uid != 0: uid_blacklist.append(target.uid)
 		"promote":
 			if !peer.is_admin:
 				send_server_chat("Error: Must be admin to promote peers", peer)
@@ -584,6 +631,11 @@ func get_client_by_uid(uid: String) -> EchonetPeer:
 func update_admin_status(peer: EchonetPeer, promote: bool = true) -> void:
 	peer.is_admin = promote
 	var admin_update_packet := AdminUpdatePacket.new(peer.id, promote)
+	if peer.uid != 0 && should_save_admin_status_changes:
+		if promote:
+			uid_admin_list.append(peer.uid)
+		else:
+			if uid_admin_list.has(peer.uid): uid_admin_list.remove_at(uid_admin_list.find(peer.id))
 	server_broadcast(admin_update_packet, 0, true)
 
 ## Call at regular intervals to gather statistics in array
