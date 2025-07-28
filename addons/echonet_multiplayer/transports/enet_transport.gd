@@ -133,17 +133,14 @@ func handle_events() -> void:
 					if is_connected: shutdown(packet_event[2])
 					return
 			ENetConnection.EVENT_RECEIVE:
-				if is_server:
+				for n in peer.get_available_packet_count():
 					var packet := EchonetPacket.new()
-					packet.sender = client_peers.get(peer.get_meta("id", -1), null)
-					if packet.sender == null:
-						packet.sender = EchonetPeer.new(_unverified_enet_peers.find(peer))
-					packet.data = peer.get_packet()
-					packet.decode()
-					handle_packet(packet)
-				else:
-					var packet := EchonetPacket.new()
-					packet.sender = server_peer
+					if is_server:
+						packet.sender = client_peers.get(peer.get_meta("id", -1), null)
+						if packet.sender == null:
+							packet.sender = EchonetPeer.new(_unverified_enet_peers.find(peer))
+					else:
+						packet.sender = server_peer
 					packet.data = peer.get_packet()
 					packet.decode()
 					handle_packet(packet)
