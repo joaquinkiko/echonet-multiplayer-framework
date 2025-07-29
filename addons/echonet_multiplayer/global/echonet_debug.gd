@@ -75,7 +75,7 @@ func _ready() -> void:
 		if arg.begins_with("--clientuid="): 
 			Echonet.local_uid = int(arg.trim_prefix("--clientuid="))
 	if args.has("--server"):
-		if args.has("--headless"): Echonet.transport.init_headless_server()
+		if DisplayServer.get_name() == "headless": Echonet.transport.init_headless_server()
 		else: Echonet.transport.init_server()
 	elif args.has("--client"): Echonet.transport.init_client()
 
