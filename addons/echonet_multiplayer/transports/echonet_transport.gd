@@ -376,6 +376,8 @@ func shutdown(reason: DisconnectReason = DisconnectReason.LOCAL_REQUEST) -> bool
 	uid_blacklist.clear()
 	uid_whitelist.clear()
 	_server_time = 0
+	_tick = 0
+	has_synced_time = false
 	on_disconnected.emit(reason)
 	return true
 
