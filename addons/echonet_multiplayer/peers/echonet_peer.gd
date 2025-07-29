@@ -27,6 +27,9 @@ var is_admin: bool:
 	set(value): _is_admin = value
 var _is_admin: bool = false
 
+## IDs of spawned objects owned
+var owned_object_ids: PackedInt32Array
+
 func _init(client_id: int) -> void:
 	_id = client_id
 

@@ -12,6 +12,8 @@ enum PacketType {
 	CHAT = 6,
 	ADMIN_UPDATE = 7,
 	TIME_SYNC = 8,
+	SPAWN = 9,
+	DESPAWN = 10,
 }
 
 ## [PacketType] to sign first byte of packet with

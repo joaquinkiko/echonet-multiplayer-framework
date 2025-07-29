@@ -1,6 +1,9 @@
 ## Global Echonet multiplayer manager
 extends Node
 
+## Max number of spawned objects
+const MAX_SPAWNED_OBJECTS := 65535 # u16 max value
+
 ## Maximum characters for user nickname
 const MAX_NICKNAME_SIZE := 32
 
@@ -17,6 +20,9 @@ var transport: EchonetTransport:
 		if value == null: _transport = LocalTransport.new()
 		else: _transport = value
 var _transport: EchonetTransport = LocalTransport.new()
+
+## Collection of currently spawned objects
+var spawned_objects: Dictionary[int, Node]
 
 func _init() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS

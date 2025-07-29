@@ -12,7 +12,8 @@ enum ServerChannels {
 	MAIN = 0,
 	BACKEND = 1,
 	CHAT = 2,
-	MAX = 3
+	SPAWN = 3,
+	MAX = 4
 }
 
 ## Reason for client/server being disconnected
@@ -379,6 +380,8 @@ func shutdown(reason: DisconnectReason = DisconnectReason.LOCAL_REQUEST) -> bool
 	_tick = 0
 	has_synced_time = false
 	on_disconnected.emit(reason)
+	for node in Echonet.spawned_objects.values(): node.queue_free()
+	Echonet.spawned_objects.clear()
 	return true
 
 ## Async method to check if client / server connected successfuly before timing out
@@ -430,7 +433,10 @@ func peer_connected(peer: EchonetPeer) -> void:
 ## Call when peer disconnects
 func peer_disconnected(peer_id: int) -> void:
 	on_peer_disconnecting.emit(peer_id)
-	if is_server: server_broadcast(IDUnassignmentPacket.new(peer_id), ServerChannels.BACKEND)
+	if is_server: 
+		server_broadcast(IDUnassignmentPacket.new(peer_id), ServerChannels.BACKEND)
+		for object_id in client_peers.get(peer_id, EchonetPeer.placeholder()).owned_object_ids.duplicate():
+			despawn(object_id)
 	print("Lost connection: ", client_peers.get(peer_id, EchonetPeer.placeholder()))
 	_client_peers.erase(peer_id)
 
@@ -554,8 +560,62 @@ func handle_packet(packet: EchonetPacket) -> void:
 						_tick += MAX_SERVER_TIME / msec_per_tick
 						packet.current_tick -= MAX_SERVER_TIME / msec_per_tick
 					has_synced_time = true
+		EchonetPacket.PacketType.SPAWN:
+			packet = SpawnPacket.new_remote(packet)
+			var scene: PackedScene = ResourceLoader.load(ResourceUID.get_id_path(packet.scene_uid))
+			if scene == null: push_error("Spawning error loading resource uid %s"%packet.scene_uid)
+			else:
+				var new_scene := scene.instantiate()
+				new_scene.set_meta("id", packet.spawn_id)
+				Echonet.spawned_objects[packet.spawn_id] = new_scene
+				Echonet.add_child(new_scene)
+		EchonetPacket.PacketType.DESPAWN:
+			packet = DespawnPacket.new_remote(packet)
+			if Echonet.spawned_objects.keys().has(packet.despawn_id):
+				if Echonet.spawned_objects[packet.despawn_id] != null:
+					Echonet.spawned_objects[packet.despawn_id].queue_free()
+				Echonet.spawned_objects.erase(packet.despawn_id)
 		_:
 			push_error("Unrecognized packet type: ", packet.type)
+
+## Spawns an object and returns it's ID
+func spawn(scene_uid: int, owner: EchonetPeer = null) -> int:
+	if !is_server: push_error("Only server can spawn objects")
+	if !ResourceUID.has_id(scene_uid):
+		push_error("Unknown resource uid to spawn: %s"%scene_uid)
+		return -1
+	var id := _get_next_available_object_id()
+	var scene: PackedScene = ResourceLoader.load(ResourceUID.get_id_path(scene_uid))
+	if scene == null: push_error("Spawning error loading resource uid %s"%scene_uid)
+	else:
+		var new_scene := scene.instantiate()
+		new_scene.set_meta("id", id)
+		Echonet.spawned_objects[id] = new_scene
+		if owner != null:
+			new_scene.set_meta("owner", owner)
+			owner.owned_object_ids.append(id)
+		Echonet.add_child(new_scene)
+		server_broadcast(SpawnPacket.new(scene_uid, id), ServerChannels.SPAWN, true)
+	return id
+
+## Despawns object
+func despawn(object_id: int) -> void:
+	if !Echonet.spawned_objects.has(object_id): push_warning("Cannot despawn non-existent object")
+	else:
+		if Echonet.spawned_objects.keys().has(object_id):
+			if Echonet.spawned_objects[object_id] != null:
+				var owner: EchonetPeer = Echonet.spawned_objects[object_id].get_meta("owner", null)
+				if owner != null && owner.owned_object_ids.has(object_id):
+					owner.owned_object_ids.remove_at(owner.owned_object_ids.find(object_id))
+				Echonet.spawned_objects[object_id].queue_free()
+			Echonet.spawned_objects.erase(object_id)
+		server_broadcast(DespawnPacket.new(object_id), ServerChannels.SPAWN, true)
+
+func _get_next_available_object_id() -> int:
+	var output := 0
+	while Echonet.spawned_objects.keys().has(output):
+		output += 1
+	return output
 
 ## Returns latency in milliseconds from server
 func get_server_latency() -> int: return 0
