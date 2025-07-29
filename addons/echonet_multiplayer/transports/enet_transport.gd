@@ -227,7 +227,7 @@ func server_authentication_timeout(peer: ENetPacketPeer) -> void:
 	while Time.get_ticks_msec() < timeout_time:
 		if !_unverified_enet_peers.has(peer): return
 		await Engine.get_main_loop().process_frame
-	if peer != null: peer.peer_disconnect(DisconnectReason.KICKED)
+	if peer != null: peer.peer_disconnect(DisconnectReason.FAILED_TO_VERIFY)
 
 func gather_statistics() -> PackedInt64Array:
 	if connection == null: return super.gather_statistics()

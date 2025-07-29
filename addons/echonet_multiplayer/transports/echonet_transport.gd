@@ -20,6 +20,9 @@ enum DisconnectReason {
 	FAILED_AUTHENTICATION_IDENTIFICATION = 9,
 	FAILED_AUTHENTICATION_BLACKLISTED = 10,
 	SERVER_FULL = 11,
+	INFO_REQUEST_COMPLETED = 12,
+	INFO_REQUEST_TIMEOUT = 13,
+	FAILED_TO_VERIFY = 14,
 }
 
 ## Result of authentication attempt
@@ -251,6 +254,12 @@ func shutdown(reason: DisconnectReason = DisconnectReason.LOCAL_REQUEST) -> bool
 				print("Disconnected due to server ban")
 			DisconnectReason.SERVER_FULL:
 				print("Failed to connect due to full server")
+			DisconnectReason.INFO_REQUEST_COMPLETED:
+				print("Info request completed-- Disconnecting")
+			DisconnectReason.INFO_REQUEST_TIMEOUT:
+				print("Info request timed out-- Disconnecting")
+			DisconnectReason.FAILED_TO_VERIFY:
+				print("Kicked due to failing to send authentication")
 	_is_connected = false
 	_is_server = false
 	_is_client = false
@@ -276,10 +285,11 @@ func _check_for_successful_connection() -> void:
 			if is_server: on_server_initialized.emit()
 			if is_client: on_connected_to_server.emit()
 			if !is_server && !is_client:
-				shutdown(DisconnectReason.LOCAL_REQUEST)
+				shutdown(DisconnectReason.INFO_REQUEST_COMPLETED)
 			return
 		await Engine.get_main_loop().process_frame
-	shutdown(DisconnectReason.TIMEOUT)
+	if !is_client && !is_server: shutdown(DisconnectReason.INFO_REQUEST_TIMEOUT)
+	else: shutdown(DisconnectReason.TIMEOUT)
 
 ## Returns next unused client ID
 func _get_available_id() -> int:
@@ -363,13 +373,13 @@ func handle_packet(packet: EchonetPacket) -> void:
 			_has_server_info = true
 			packet = ServerInfoPacket.new_remote(packet)
 			if !is_client:
-				printt("Server Info: ",
+				printt("Received server info: ",
 					'"%s"'%packet.server_name, 
 					"%s/%s"%[packet.current_peers, packet.max_peers], 
 					packet.status_to_string())
 				on_server_info_request_received.emit(packet)
 				_connection_successful = false
-				shutdown(DisconnectReason.LOCAL_REQUEST)
+				shutdown(DisconnectReason.INFO_REQUEST_COMPLETED)
 				return
 			server_name = packet.server_name
 			_max_peers = packet.max_peers
