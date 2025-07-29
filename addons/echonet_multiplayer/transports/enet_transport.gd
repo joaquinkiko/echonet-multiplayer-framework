@@ -37,7 +37,7 @@ var _port: int = 42069
 func init_server() -> bool:
 	if !super.init_server(): return false
 	connection = ENetConnection.new()
-	var error := connection.create_host_bound(ip, port, max_peers, MAX_CHANNELS)
+	var error := connection.create_host_bound(ip, port, max_peers, ServerChannels.MAX)
 	if error:
 		print("Failed: ", error_string(error))
 		connection = null
@@ -73,7 +73,7 @@ func init_server_info_request() -> bool:
 func init_headless_server() -> bool:
 	if !super.init_headless_server(): return false
 	connection = ENetConnection.new()
-	var error := connection.create_host_bound(ip, port, max_peers + 1, MAX_CHANNELS)
+	var error := connection.create_host_bound(ip, port, max_peers + 1, ServerChannels.MAX)
 	if error:
 		print("Failed: ", error_string(error))
 		connection = null
@@ -119,10 +119,10 @@ func handle_events() -> void:
 						password, 
 						authentication_hash
 						)
-					enet_server_peer.send(0, auth_packet.encode(), ENetPacketPeer.FLAG_RELIABLE)
+					enet_server_peer.send(ServerChannels.BACKEND, auth_packet.encode(), ENetPacketPeer.FLAG_RELIABLE)
 				else:
 					var info_request_packet := InfoRequestPacket.new(InfoRequestPacket.RequestType.SERVER_INFO)
-					enet_server_peer.send(0, info_request_packet.encode(), ENetPacketPeer.FLAG_RELIABLE)
+					enet_server_peer.send(ServerChannels.BACKEND, info_request_packet.encode(), ENetPacketPeer.FLAG_RELIABLE)
 			ENetConnection.EVENT_DISCONNECT:
 				if is_server:
 					if peer.has_meta("id"):
@@ -216,12 +216,12 @@ func processs_authentication(result: AuthenticationResult, packet: Authenticatio
 						Echonet_peer.nickname = ascii_buffer.get_string_from_ascii()
 			Echonet_peer.uid = packet.uid
 			peer_connected(Echonet_peer)
-			server_message(Echonet_peer, _create_server_info_packet(), 0, true)
+			server_message(Echonet_peer, _create_server_info_packet(), ServerChannels.BACKEND, true)
 			_unverified_enet_peers.erase(peer)
 
 func send_server_info(packet: EchonetPacket) -> void:
 	var peer: ENetPacketPeer = _unverified_enet_peers.get(packet.sender.id)
-	peer.send(0, _create_server_info_packet().encode(), ENetPacketPeer.FLAG_RELIABLE)
+	peer.send(ServerChannels.BACKEND, _create_server_info_packet().encode(), ENetPacketPeer.FLAG_RELIABLE)
 
 func server_authentication_timeout(peer: ENetPacketPeer) -> void:
 	var timeout_time := Time.get_ticks_msec() + SERVER_AUTHENTICATION_TIMEOUT

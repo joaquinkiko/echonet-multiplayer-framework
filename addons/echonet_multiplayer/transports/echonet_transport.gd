@@ -1,8 +1,13 @@
 ## Generic class for networking transports-- do not use directly
 class_name EchonetTransport extends RefCounted
 
-## Max Server Channels
-const MAX_CHANNELS := 2
+## Channels for sending data
+enum ServerChannels {
+	MAIN = 0,
+	BACKEND = 1,
+	CHAT = 2,
+	MAX = 3
+}
 
 ## Reason for client/server being disconnected
 enum DisconnectReason {
@@ -87,7 +92,7 @@ var is_joinable: bool:
 	get: return _is_joinable
 	set(value):
 		_is_joinable = value
-		if is_server: server_broadcast(_create_server_info_packet(), 0, true)
+		if is_server: server_broadcast(_create_server_info_packet(), ServerChannels.BACKEND, true)
 var _is_joinable: bool = true
 
 ## Server password for connecting to server / compare against clients (empty for no password)
@@ -129,7 +134,7 @@ var server_name: String:
 		else: return _server_name
 	set(value): 
 		_server_name = value
-		if is_server: server_broadcast(_create_server_info_packet(), 0, true)
+		if is_server: server_broadcast(_create_server_info_packet(), ServerChannels.BACKEND, true)
 var _server_name: String
 
 ## True if active connection of any type, or attempting connection
@@ -318,14 +323,15 @@ func peer_connected(peer: EchonetPeer) -> void:
 				_uids[n] = client_peers[n].uid
 			if client_peers[n].is_admin:
 				_admins.append(n)
-		server_broadcast(IDAssignmentPacket.new(peer.id, client_peers.keys(), _nicknames, _uids, _admins))
+		server_broadcast(IDAssignmentPacket.new(peer.id, client_peers.keys(), _nicknames, _uids, _admins), 
+			ServerChannels.BACKEND)
 		print("New connection: ", peer)
 		if !peer.is_self: on_peer_connected.emit.call_deferred(peer.id)
 
 ## Call when peer disconnects
 func peer_disconnected(peer_id: int) -> void:
 	on_peer_disconnecting.emit(peer_id)
-	if is_server: server_broadcast(IDUnassignmentPacket.new(peer_id))
+	if is_server: server_broadcast(IDUnassignmentPacket.new(peer_id), ServerChannels.BACKEND)
 	print("Lost connection: ", client_peers.get(peer_id, EchonetPeer.placeholder()))
 	_client_peers.erase(peer_id)
 
@@ -471,23 +477,23 @@ func send_chat(message: String, audience: EchonetPeer = null) -> void:
 			handle_server_command(command, args, server_peer)
 			return
 		if audience == null:
-			server_broadcast(chat_packet, 0, true)
+			server_broadcast(chat_packet, ServerChannels.CHAT, true)
 		else:
-			server_message(audience, chat_packet, 0, true)
+			server_message(audience, chat_packet, ServerChannels.CHAT, true)
 		on_chat_received.emit(message, server_peer)
 	else:
-		client_message(chat_packet, 0, true)
+		client_message(chat_packet, ServerChannels.CHAT, true)
 
 ## Server sends non-personal chat message to specific peer-- null to send to all
 func send_server_chat(message: String, audience: EchonetPeer) -> void:
 	if audience != null:
 		var chat_packet := ChatPacket.new(audience.id, 0, message)
 		if audience.is_server: on_chat_received.emit(chat_packet.text, null)
-		else: server_message(audience, chat_packet, 0, true)
+		else: server_message(audience, chat_packet, ServerChannels.CHAT, true)
 	else:
 		var chat_packet := ChatPacket.new(0, 0, message)
 		on_chat_received.emit(chat_packet.text, null)
-		server_broadcast(chat_packet, 0, true)
+		server_broadcast(chat_packet, ServerChannels.CHAT, true)
 
 ## Relays received [ChatPacket] across server
 func server_relay_message(packet: ChatPacket) -> void:
@@ -504,8 +510,9 @@ func server_relay_message(packet: ChatPacket) -> void:
 		return
 	elif packet.receiver == 0: 
 		on_chat_received.emit(packet.text, packet.sender)
-		server_broadcast(packet, 0, true)
-	elif client_peers.has(packet.receiver): server_message(client_peers[packet.receiver], packet, 0, true)
+		server_broadcast(packet, ServerChannels.CHAT, true)
+	elif client_peers.has(packet.receiver): 
+		server_message(client_peers[packet.receiver], packet, ServerChannels.CHAT, true)
 
 ## Called when server command is received
 func handle_server_command(command: String, args: PackedStringArray, peer: EchonetPeer) -> void:
@@ -531,12 +538,12 @@ func handle_server_command(command: String, args: PackedStringArray, peer: Echon
 			if audience.is_self:
 				on_chat_received.emit("(whisper) %s"%message, peer)
 				var chat_ack_packet := ChatPacket.new(peer.id, peer.id, "(whisper) %s"%message)
-				server_message(peer, chat_ack_packet, 0, true)
+				server_message(peer, chat_ack_packet, ServerChannels.CHAT, true)
 			else:
-				server_message(audience, chat_packet, 0, true)
+				server_message(audience, chat_packet, ServerChannels.CHAT, true)
 				var chat_ack_packet := ChatPacket.new(peer.id, peer.id, "(whisper) %s"%message)
 				if is_server: on_chat_received.emit(chat_ack_packet.text, server_peer)
-				else: server_message(peer, chat_ack_packet, 0, true)
+				else: server_message(peer, chat_ack_packet, ServerChannels.CHAT, true)
 		"kick":
 			if !peer.is_admin:
 				send_server_chat("Error: Must be admin to kick peers", peer)
@@ -691,7 +698,7 @@ func update_admin_status(peer: EchonetPeer, promote: bool = true) -> void:
 			uid_admin_list.append(peer.uid)
 		else:
 			if uid_admin_list.has(peer.uid): uid_admin_list.remove_at(uid_admin_list.find(peer.id))
-	server_broadcast(admin_update_packet, 0, true)
+	server_broadcast(admin_update_packet, ServerChannels.BACKEND, true)
 
 ## Call at regular intervals to gather statistics in array
 ## 0:data in	1:data out	2:packets in	3:packets out	4:rtt	5:throttle	6:packet loss
