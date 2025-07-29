@@ -2,7 +2,10 @@
 class_name EchonetTransport extends RefCounted
 
 ## Max ticks to simulate per frame
-const MAX_TICKS_PER_FRAME = 1
+const MAX_TICKS_PER_FRAME := 8
+
+## Time in milliseconds in which server must loop time
+const MAX_SERVER_TIME := 4294967295 # u32 max value
 
 ## Channels for sending data
 enum ServerChannels {
@@ -69,6 +72,9 @@ signal on_tick(delta: float)
 signal before_tick_loop()
 ## Called after every tick loop
 signal after_tick_loop()
+
+## Called when time is resyncronized-- Provides relative change in server time
+signal on_time_resynced(delta_msec: int)
 
 ## List of connected client-peers sorted by id (including self)
 var client_peers: Dictionary[int, EchonetPeer]:
@@ -211,9 +217,9 @@ func init_server() -> bool:
 		push_warning("Cannot create connection whilst one is already open!")
 		return false
 	print("Initializing server...")
-	_server_time = 0
+	_server_time = MAX_SERVER_TIME
 	_tick = 0
-	_next_tick_time = 0
+	_next_tick_time = MAX_SERVER_TIME
 	has_synced_time = true
 	is_joinable = true
 	_is_connected = true
@@ -433,6 +439,9 @@ func handle_events() -> void: pass
 func handle_time(delta: float) -> void:
 	if !has_synced_time: return
 	_server_time += int(delta * 1000)
+	if server_time > MAX_SERVER_TIME: 
+		_server_time -= MAX_SERVER_TIME
+		_next_tick_time -= MAX_SERVER_TIME
 	var simulated_ticks: int = 0
 	before_tick_loop.emit()
 	while server_time > _next_tick_time:
@@ -527,13 +536,21 @@ func handle_packet(packet: EchonetPacket) -> void:
 				packet = TimeSyncPacket.new_remote(packet)
 				if has_synced_time:
 					var old_time := server_time
+					var server_loops: int = packet.current_tick / (MAX_SERVER_TIME / msec_per_tick)
 					_server_time = packet.time + get_server_latency()
+					_server_time += MAX_SERVER_TIME * server_loops
 					print("Time Sync received. Adjusted by %smsec"%(server_time - old_time))
+					on_time_resynced.emit(server_time - old_time)
 				else:
 					_server_time = packet.time + get_server_latency()
 					_tick_rate = packet.ticks_per_second
 					_tick = server_time / msec_per_tick
 					_next_tick_time = tick * msec_per_tick + msec_per_tick
+					while packet.current_tick * msec_per_tick > MAX_SERVER_TIME:
+						_server_time += MAX_SERVER_TIME
+						_next_tick_time += MAX_SERVER_TIME
+						_tick += MAX_SERVER_TIME / msec_per_tick
+						packet.current_tick -= MAX_SERVER_TIME / msec_per_tick
 					has_synced_time = true
 		_:
 			push_error("Unrecognized packet type: ", packet.type)

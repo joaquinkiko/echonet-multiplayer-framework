@@ -217,7 +217,7 @@ func processs_authentication(result: AuthenticationResult, packet: Authenticatio
 			Echonet_peer.uid = packet.uid
 			peer_connected(Echonet_peer)
 			server_message(Echonet_peer, _create_server_info_packet(), ServerChannels.BACKEND, true)
-			var time_sync_packet := TimeSyncPacket.new(server_time, tick_rate)
+			var time_sync_packet := TimeSyncPacket.new(server_time, tick_rate, tick)
 			server_message(Echonet_peer, time_sync_packet, ServerChannels.BACKEND, true)
 			_unverified_enet_peers.erase(peer)
 
