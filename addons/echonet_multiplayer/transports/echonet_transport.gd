@@ -203,6 +203,26 @@ func init_headless_server() -> bool:
 		push_warning("Cannot create connection whilst one is already open!")
 		return false
 	print("Initializing headless-server...")
+	if FileAccess.file_exists("user://server_info.cfg"):
+		print("Loading server_info.cfg...")
+		var config := ConfigFile.new()
+		if config.load("user://server_info.cfg") == OK:
+			const SECTION_INFO := "info"
+			const SECTION_SETTINGS := "settings"
+			const SECTION_ENET := "enet"
+			const SECTION_CLIENTS := "clients"
+			server_name = config.get_value(SECTION_INFO, "name", server_name)
+			max_peers = config.get_value(SECTION_SETTINGS, "maxpeers", max_peers)
+			password = hash_password(config.get_value(SECTION_SETTINGS, "password", []))
+			uid_whitelist = config.get_value(SECTION_CLIENTS, "whitelist", uid_whitelist)
+			uid_blacklist = config.get_value(SECTION_CLIENTS, "blacklist", uid_blacklist)
+			uid_admin_list = config.get_value(SECTION_CLIENTS, "admins", uid_admin_list)
+			allow_empty_uid = !config.get_value(SECTION_SETTINGS, "requireuid", !allow_empty_uid)
+			flags_to_ban = config.get_value(SECTION_SETTINGS, "flaglimit", flags_to_ban)
+			if self is ENetTransport:
+				self.port = config.get_value(SECTION_ENET, "port", self.port)
+				self.ip = config.get_value(SECTION_ENET, "ip", self.ip)
+		else: push_warning("Unable to read server_info.cfg")
 	is_joinable = true
 	_is_connected = true
 	_is_server = true
@@ -235,6 +255,15 @@ func shutdown(reason: DisconnectReason = DisconnectReason.LOCAL_REQUEST) -> bool
 		return false
 	if is_server:
 		print("Shutdown server")
+		if !is_client && FileAccess.file_exists("user://server_info.cfg"):
+			print("Saving server_info.cfg...")
+			var config := ConfigFile.new()
+			if config.load("user://server_info.cfg") == OK:
+				config.set_value("clients", "blacklist", uid_blacklist)
+				config.set_value("clients", "admins", uid_admin_list)
+				if config.save("user://server_info.cfg") != OK:
+					push_warning("Unable to save server_info.cfg")
+			else: push_warning("Unable to load server_info.cfg to save")
 	else:
 		match reason:
 			DisconnectReason.ERROR:
