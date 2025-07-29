@@ -116,6 +116,12 @@ var allow_empty_uid: bool = true
 ## While true admin promotions/demotions will be automatically recorded to [member uid_admin_list]
 var should_save_admin_status_changes: bool = true
 
+## List of UIDs with flags against them
+var uid_flags: Dictionary[int, int]
+
+## Number of flags against a UID before they are banned
+var flags_to_ban: int = 3
+
 ## Name of current server
 var server_name: String:
 	get: 
@@ -406,7 +412,28 @@ func handle_packet(packet: EchonetPacket) -> void:
 			push_error("Unrecognized packet type: ", packet.type)
 
 ## Call to kick a peer
-func kick(peer: EchonetPeer) -> void: pass
+func kick(peer: EchonetPeer) -> void:
+	if peer.is_server:
+		push_warning("Cannot kick server")
+		return
+	if peer.uid != 0:
+		if uid_flags.has(peer.uid): uid_flags[peer.uid] += 1
+		else: uid_flags[peer.uid] = 1
+		if uid_flags[peer.uid] >= flags_to_ban: uid_blacklist.append(peer.uid)
+
+## Adds a flag to UID of peer, banning them if their flag count equals [member flags_to_ban]
+func flag(peer: EchonetPeer) -> void:
+	if peer.is_server:
+		push_warning("Cannot flag server")
+		return
+	if peer.uid != 0:
+		if uid_flags.has(peer.uid): uid_flags[peer.uid] += 1
+		else: uid_flags[peer.uid] = 1
+		if uid_flags[peer.uid] >= flags_to_ban: 
+			uid_blacklist.append(peer.uid)
+			kick(peer)
+	else:
+		print("Cannot flag '%s' as they have no UID"%peer)
 
 ## Server calls to broadcast to all clients
 func server_broadcast(packet: EchonetPacket, channel: int = 0, reliable: bool = false): pass
@@ -529,6 +556,25 @@ func handle_server_command(command: String, args: PackedStringArray, peer: Echon
 				return
 			kick(target)
 			send_server_chat("Kicking '%s'"%args[0], peer)
+		"flag":
+			if !peer.is_admin:
+				send_server_chat("Error: Must be admin to flag peers", peer)
+				return
+			if args.size() < 1:
+				send_server_chat("Error: 'flag' must include argument", peer)
+				return
+			var target := get_client_by_nickname(args[0])
+			if target == null:
+				send_server_chat("Error: '%s' could not be found to 'flag'"%args[0], peer)
+				return
+			if target.is_self:
+				send_server_chat("Error: Cannot 'flag' self", peer)
+				return
+			if target.is_server:
+				send_server_chat("Error: Cannot 'flag' server", peer)
+				return
+			flag(target)
+			send_server_chat("Flagging '%s'"%args[0], peer)
 		"ban":
 			if !peer.is_admin:
 				send_server_chat("Error: Must be admin to ban peers", peer)

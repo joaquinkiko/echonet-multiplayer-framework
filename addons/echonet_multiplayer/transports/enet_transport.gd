@@ -148,6 +148,7 @@ func handle_events() -> void:
 		event_type = packet_event[0]
 
 func kick(peer: EchonetPeer) -> void:
+	super.kick(peer)
 	peer.get_meta("enet_peer").peer_disconnect(DisconnectReason.KICKED)
 
 func server_broadcast(packet: EchonetPacket, channel: int = 0, reliable: bool = false):
