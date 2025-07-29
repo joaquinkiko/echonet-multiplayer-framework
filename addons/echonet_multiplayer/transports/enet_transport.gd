@@ -196,13 +196,13 @@ func processs_authentication(result: AuthenticationResult, packet: Authenticatio
 				Echonet_peer.is_admin = true
 			Echonet_peer.set_meta("enet_peer", peer)
 			peer.set_meta("id", Echonet_peer.id)
-			Echonet_peer.nickname = packet.nickname
+			Echonet_peer.nickname = packet.nickname.replace(" ", "")
 			var existing_nicknames: PackedStringArray
-			for client in client_peers.values(): existing_nicknames.append(client.nickname)
-			if existing_nicknames.has(Echonet_peer.nickname):
+			for client in client_peers.values(): existing_nicknames.append(client.nickname.to_lower())
+			if existing_nicknames.has(Echonet_peer.nickname.to_lower()):
 				var suffix: int = 0
 				var og_nickname := Echonet_peer.nickname
-				while existing_nicknames.has(Echonet_peer.nickname):
+				while existing_nicknames.has(Echonet_peer.nickname.to_lower()):
 					suffix += 1
 					if og_nickname.length() + 2 + str(suffix).length() > 32:
 						var overwrite := og_nickname.length() + 2 + str(suffix).length() - 32

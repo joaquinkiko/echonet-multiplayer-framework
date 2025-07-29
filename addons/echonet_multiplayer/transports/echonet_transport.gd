@@ -673,7 +673,7 @@ func handle_server_command(command: String, args: PackedStringArray, peer: Echon
 ## Returns first client with matching nickname-- return null if not found
 func get_client_by_nickname(nickname: String) -> EchonetPeer:
 	for client in client_peers.values():
-		if client.nickname == nickname: return client
+		if client.nickname.to_lower() == nickname.to_lower(): return client
 	return null
 
 ## Returns first client with matching UID-- return null if not found
