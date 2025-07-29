@@ -160,7 +160,6 @@ func init_server() -> bool:
 	_server_peer = EchonetPeer.create_server()
 	_server_peer.uid = Echonet.local_uid
 	_server_peer.nickname = Echonet.local_nickname
-	_server_peer.info_received = true
 	local_id = 1
 	_client_peers = {1:server_peer}
 	_connection_successful = false
@@ -291,10 +290,19 @@ func _get_available_id() -> int:
 
 ## Call when new peer connects-- assigns peer ID if none assigned yet
 func peer_connected(peer: EchonetPeer) -> void:
-	if peer.id == 0: peer.id = _get_available_id()
 	_client_peers[peer.id] = peer
-	if is_server: 
-		server_broadcast(IDAssignmentPacket.new(peer.id, client_peers.keys()))
+	if is_server:
+		var _nicknames: Dictionary[int, String]
+		var _uids: Dictionary[int, int]
+		var _admins: PackedInt32Array
+		for n in client_peers.keys():
+			if !client_peers[n].nickname.is_empty():
+				_nicknames[n] = client_peers[n].nickname
+			if client_peers[n].uid != 0:
+				_uids[n] = client_peers[n].uid
+			if client_peers[n].is_admin:
+				_admins.append(n)
+		server_broadcast(IDAssignmentPacket.new(peer.id, client_peers.keys(), _nicknames, _uids, _admins))
 		print("New connection: ", peer)
 		if !peer.is_self: on_peer_connected.emit.call_deferred(peer.id)
 
@@ -304,15 +312,6 @@ func peer_disconnected(peer_id: int) -> void:
 	if is_server: server_broadcast(IDUnassignmentPacket.new(peer_id))
 	print("Lost connection: ", client_peers.get(peer_id, EchonetPeer.placeholder()))
 	_client_peers.erase(peer_id)
-
-## Call when peer's info is updated
-func peer_info_updated(peer: EchonetPeer) -> void:
-	if peer.info_received:
-		pass
-	else:
-		peer.info_received = true
-		if !peer.is_self: on_peer_connected.emit.call_deferred(peer.id)
-		print("New connection: ", peer)
 
 ## Should be called every frame
 func handle_events() -> void: pass
@@ -325,11 +324,20 @@ func handle_packet(packet: EchonetPacket) -> void:
 			if is_server: return
 			packet = IDAssignmentPacket.new_remote(packet)
 			if local_id == -1:
+				_has_peer_info = true
 				local_id = packet.id
 				for remote_id in packet.remote_ids:
-					peer_connected(EchonetPeer.create_client(remote_id))
+					var client = EchonetPeer.create_client(remote_id)
+					client.nickname = packet.nicknames.get(remote_id, "")
+					client.uid = packet.uids.get(remote_id, 0)
+					if packet.admins.has(remote_id): client.is_admin = true
+					peer_connected(client)
 			else:
-				peer_connected(EchonetPeer.create_client(packet.id))
+				var client = EchonetPeer.create_client(packet.id)
+				client.nickname = packet.nicknames.get(packet.id, "")
+				client.uid = packet.uids.get(packet.id, 0)
+				if packet.admins.has(packet.id): client.is_admin = true
+				peer_connected(client)
 		EchonetPacket.PacketType.ID_UNASSIGNMENT:
 			if is_server: return
 			packet = IDUnassignmentPacket.new_remote(packet)
@@ -368,18 +376,6 @@ func handle_packet(packet: EchonetPacket) -> void:
 			if packet.server_status == ServerInfoPacket.ServerStatus.NON_JOINABLE:
 				is_joinable = false
 			else: is_joinable = true
-		EchonetPacket.PacketType.PEER_INFO:
-			packet = PeerInfoPacket.new_remote(packet)
-			if is_server:
-				pass
-			else:
-				_has_peer_info = true
-				for n in packet.nicknames.keys():
-					if !client_peers.has(n): continue
-					client_peers[n].nickname = packet.nicknames[n]
-					client_peers[n].uid = packet.uids.get(n, 0)
-					client_peers[n].is_admin = packet.admins.get(n, false)
-					peer_info_updated(client_peers[n])
 		EchonetPacket.PacketType.INFO_REQUEST:
 			packet = InfoRequestPacket.new_remote(packet)
 			if is_server:

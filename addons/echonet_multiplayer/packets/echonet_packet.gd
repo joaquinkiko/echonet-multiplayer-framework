@@ -6,12 +6,11 @@ enum PacketType {
 	UNKNOWN = 0,
 	ID_ASSIGNMENT = 1,
 	ID_UNASSIGNMENT = 2,
-	PEER_INFO = 3,
-	SERVER_INFO = 4,
-	AUTHENTICATION = 5,
-	INFO_REQUEST = 6,
-	CHAT = 7,
-	ADMIN_UPDATE = 8,
+	SERVER_INFO = 3,
+	AUTHENTICATION = 4,
+	INFO_REQUEST = 5,
+	CHAT = 6,
+	ADMIN_UPDATE = 7,
 }
 
 ## [PacketType] to sign first byte of packet with

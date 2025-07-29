@@ -26,8 +26,6 @@ var is_admin: bool:
 		return _is_admin
 	set(value): _is_admin = value
 var _is_admin: bool = false
-## False if still waiting to receive this client's info via [PeerInfoPacket]
-var info_received: bool = false
 
 func _init(client_id: int) -> void:
 	_id = client_id

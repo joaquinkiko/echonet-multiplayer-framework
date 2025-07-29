@@ -216,18 +216,7 @@ func processs_authentication(result: AuthenticationResult, packet: Authenticatio
 			Echonet_peer.uid = packet.uid
 			peer_connected(Echonet_peer)
 			server_message(Echonet_peer, _create_server_info_packet(), 0, true)
-			var nickname_dict: Dictionary[int, String]
-			var uid_dict: Dictionary[int, int]
-			var admin_dict: Dictionary[int, bool]
-			for n in client_peers.keys():
-				nickname_dict[n] = client_peers[n].nickname
-				if client_peers[n].uid != 0:
-					uid_dict[n] = client_peers[n].uid
-				if client_peers[n].is_admin:
-					admin_dict[n] = true
-			var peer_info_packet := PeerInfoPacket.new(nickname_dict, uid_dict, admin_dict)
 			_unverified_enet_peers.erase(peer)
-			server_broadcast(peer_info_packet, 0, true)
 
 func send_server_info(packet: EchonetPacket) -> void:
 	var peer: ENetPacketPeer = _unverified_enet_peers.get(packet.sender.id)
