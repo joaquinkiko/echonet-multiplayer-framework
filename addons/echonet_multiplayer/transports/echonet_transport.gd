@@ -302,6 +302,10 @@ func _check_for_successful_connection() -> void:
 	if !is_client && !is_server: shutdown(DisconnectReason.INFO_REQUEST_TIMEOUT)
 	else: shutdown(DisconnectReason.TIMEOUT)
 
+## Default password hashing using sha256
+func hash_password(input: String) -> PackedByteArray:
+	return input.sha256_buffer()
+
 ## Returns next unused client ID
 func _get_available_id() -> int:
 	var new_id: int = 2

@@ -69,7 +69,7 @@ func _ready() -> void:
 		if arg.begins_with("--maxpeers="): 
 			Echonet.transport.max_peers = int(arg.trim_prefix("--maxpeers="))
 		if arg.begins_with("--serverpassword="): 
-			Echonet.transport.password = arg.trim_prefix("--serverpassword=").sha1_buffer()
+			Echonet.transport.password = Echonet.transport.hash_password(arg.trim_prefix("--serverpassword="))
 		if arg.begins_with("--serverauth="): 
 			Echonet.transport.authentication_hash = arg.trim_prefix("--serverauth=").sha1_buffer()
 		if arg.begins_with("--clientuid="): 
