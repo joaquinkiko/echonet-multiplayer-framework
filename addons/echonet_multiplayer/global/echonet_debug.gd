@@ -14,6 +14,8 @@ const SHOULD_TILE_IN_EDITOR := true
 @onready var label_throttle: Label = $Statistics/Throttle/Value
 @onready var label_loss: Label = $Statistics/Loss/Value
 @onready var label_clients: Label = $Statistics/Clients
+@onready var label_time: Label = $Statistics/Time/Time
+@onready var label_tick: Label = $Statistics/Time/Tick
 
 ## Array of seven server statistics sorted as
 ## 0:data in	1:data out	2:packets in	3:packets out	4:rtt	5:throttle	6:packet loss
@@ -74,12 +76,16 @@ func _ready() -> void:
 			Echonet.transport.authentication_hash = arg.trim_prefix("--serverauth=").sha1_buffer()
 		if arg.begins_with("--clientuid="): 
 			Echonet.local_uid = int(arg.trim_prefix("--clientuid="))
+		if arg.begins_with("--tickrate="): 
+			Echonet.transport.tick_rate = int(arg.trim_prefix("--tickrate="))
 	if args.has("--server"):
 		if DisplayServer.get_name() == "headless": Echonet.transport.init_headless_server()
 		else: Echonet.transport.init_server()
 	elif args.has("--client"): Echonet.transport.init_client()
 
 func _process(delta: float) -> void:
+	label_time.text = str(Echonet.transport.server_time)
+	label_tick.text = str(Echonet.transport.tick)
 	if Time.get_ticks_msec() >= _next_monitor_update_msec:
 		var data := Echonet.transport.gather_statistics()
 		for n in 7: statistics[n] = data[n]

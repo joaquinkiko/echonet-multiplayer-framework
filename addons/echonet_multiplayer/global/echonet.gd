@@ -28,5 +28,6 @@ func _ready() -> void:
 		transport.init_headless_server()
 		return
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	transport.handle_events()
+	transport.handle_time(delta)

@@ -217,6 +217,8 @@ func processs_authentication(result: AuthenticationResult, packet: Authenticatio
 			Echonet_peer.uid = packet.uid
 			peer_connected(Echonet_peer)
 			server_message(Echonet_peer, _create_server_info_packet(), ServerChannels.BACKEND, true)
+			var time_sync_packet := TimeSyncPacket.new(server_time, tick_rate)
+			server_message(Echonet_peer, time_sync_packet, ServerChannels.BACKEND, true)
 			_unverified_enet_peers.erase(peer)
 
 func send_server_info(packet: EchonetPacket) -> void:
@@ -249,3 +251,7 @@ func gather_statistics() -> PackedInt64Array:
 			ENetPacketPeer.PACKET_LOSS_SCALE * 100)
 	else: data[6] = 0
 	return data
+
+func get_server_latency() -> int:
+	if enet_server_peer == null: return 0
+	return int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME) / 2)

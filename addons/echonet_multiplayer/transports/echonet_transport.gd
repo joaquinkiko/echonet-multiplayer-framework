@@ -1,6 +1,9 @@
 ## Generic class for networking transports-- do not use directly
 class_name EchonetTransport extends RefCounted
 
+## Max ticks to simulate per frame
+const MAX_TICKS_PER_FRAME = 1
+
 ## Channels for sending data
 enum ServerChannels {
 	MAIN = 0,
@@ -59,6 +62,13 @@ signal on_server_info_request_received(packet: ServerInfoPacket)
 
 ## Called when a chat message is received
 signal on_chat_received(message: String, sender: EchonetPeer)
+
+## Called every tick with delta machine time since last tick (not delta server time)
+signal on_tick(delta: float)
+## Called before every tick loop
+signal before_tick_loop()
+## Called after every tick loop
+signal after_tick_loop()
 
 ## List of connected client-peers sorted by id (including self)
 var client_peers: Dictionary[int, EchonetPeer]:
@@ -161,12 +171,50 @@ var _connection_successful: bool = false
 var _has_server_info: bool = false
 var _has_peer_info: bool = false
 
+## Ticks to simulate per second
+var tick_rate: int:
+	get: return _tick_rate
+	set(value): 
+		if is_connected: push_error("'tick_rate' must be set before connecting")
+		if value < 1: push_error("'tick_rate' must be atleast 1")
+		if value > 255: push_error("'tick_rate' cannot be greater than 255")
+		else: _tick_rate = value
+var _tick_rate := 30
+
+## Current time in msec since server started
+var server_time: int:
+	get: return _server_time
+	set(value): push_error("Cannot set 'server_time' directly")
+var _server_time := 0
+
+## Current server tick
+var tick: int:
+	get: return _tick
+	set(value): push_error("Cannot set 'tick' directly")
+var _tick := 0
+
+## Server time of next tick
+var _next_tick_time: int = 0
+## Milliseconds per tick
+var msec_per_tick: int:
+	get: return int(1.0 / float(tick_rate) * 1000)
+
+## Returns true if time has been syncronized
+var has_synced_time: bool
+
+## Last time a tick was processed for calculating delta (not server time)
+var _last_tick_time: int
+
 ## Initialize connection as Client-Server
 func init_server() -> bool:
 	if is_connected:
 		push_warning("Cannot create connection whilst one is already open!")
 		return false
 	print("Initializing server...")
+	_server_time = 0
+	_tick = 0
+	_next_tick_time = 0
+	has_synced_time = true
 	is_joinable = true
 	_is_connected = true
 	_is_server = true
@@ -188,6 +236,10 @@ func init_client() -> bool:
 		push_warning("Cannot create connection whilst one is already open!")
 		return false
 	print("Initializing client...")
+	_server_time = 0
+	_tick = 0
+	_next_tick_time = 0
+	has_synced_time = false
 	_is_connected = true
 	_is_client = true
 	_client_peers = {}
@@ -219,10 +271,15 @@ func init_headless_server() -> bool:
 			uid_admin_list = config.get_value(SECTION_CLIENTS, "admins", uid_admin_list)
 			allow_empty_uid = !config.get_value(SECTION_SETTINGS, "requireuid", !allow_empty_uid)
 			flags_to_ban = config.get_value(SECTION_SETTINGS, "flaglimit", flags_to_ban)
+			tick_rate = config.get_value(SECTION_SETTINGS, "tickrate", tick_rate)
 			if self is ENetTransport:
 				self.port = config.get_value(SECTION_ENET, "port", self.port)
 				self.ip = config.get_value(SECTION_ENET, "ip", self.ip)
 		else: push_warning("Unable to read server_info.cfg")
+	_server_time = 0
+	_tick = 0
+	_next_tick_time = 0
+	has_synced_time = true
 	is_joinable = true
 	_is_connected = true
 	_is_server = true
@@ -312,6 +369,7 @@ func shutdown(reason: DisconnectReason = DisconnectReason.LOCAL_REQUEST) -> bool
 	uid_admin_list.clear()
 	uid_blacklist.clear()
 	uid_whitelist.clear()
+	_server_time = 0
 	on_disconnected.emit(reason)
 	return true
 
@@ -320,7 +378,7 @@ func _check_for_successful_connection() -> void:
 	var timeout_time := Time.get_ticks_msec() + connection_timeout_msec
 	while Time.get_ticks_msec() < timeout_time:
 		if !is_connected: return
-		if _connection_successful && _has_server_info && _has_peer_info:
+		if _connection_successful && _has_server_info && _has_peer_info && has_synced_time:
 			print("Connected successfully!")
 			if is_server: on_server_initialized.emit()
 			if is_client: on_connected_to_server.emit()
@@ -370,6 +428,21 @@ func peer_disconnected(peer_id: int) -> void:
 
 ## Should be called every frame
 func handle_events() -> void: pass
+
+## Should be called every frame
+func handle_time(delta: float) -> void:
+	if !has_synced_time: return
+	_server_time += int(delta * 1000)
+	var simulated_ticks: int = 0
+	before_tick_loop.emit()
+	while server_time > _next_tick_time:
+		_tick += 1
+		_next_tick_time += msec_per_tick
+		simulated_ticks += 1
+		on_tick.emit(float(Time.get_ticks_usec() - _last_tick_time) / 1000000.0)
+		_last_tick_time = Time.get_ticks_usec()
+		if simulated_ticks > MAX_TICKS_PER_FRAME: break
+	after_tick_loop.emit()
 
 ## Handles receiving of packets
 func handle_packet(packet: EchonetPacket) -> void:
@@ -447,8 +520,26 @@ func handle_packet(packet: EchonetPacket) -> void:
 		EchonetPacket.PacketType.ADMIN_UPDATE:
 			packet = AdminUpdatePacket.new_remote(packet)
 			if client_peers.has(packet.id): client_peers[packet.id].is_admin = packet.promotion
+		EchonetPacket.PacketType.TIME_SYNC:
+			if is_server:
+				pass
+			else:
+				packet = TimeSyncPacket.new_remote(packet)
+				if has_synced_time:
+					var old_time := server_time
+					_server_time = packet.time + get_server_latency()
+					print("Time Sync received. Adjusted by %smsec"%(server_time - old_time))
+				else:
+					_server_time = packet.time + get_server_latency()
+					_tick_rate = packet.ticks_per_second
+					_tick = server_time / msec_per_tick
+					_next_tick_time = tick * msec_per_tick + msec_per_tick
+					has_synced_time = true
 		_:
 			push_error("Unrecognized packet type: ", packet.type)
+
+## Returns latency in milliseconds from server
+func get_server_latency() -> int: return 0
 
 ## Call to kick a peer
 func kick(peer: EchonetPeer) -> void:

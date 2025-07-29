@@ -28,7 +28,30 @@ text = "Status"
 
 [node name="Address" type="Label" parent="Statistics"]
 layout_mode = 2
-text = "Status"
+text = "---"
+
+[node name="Time" type="HBoxContainer" parent="Statistics"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Statistics/Time"]
+layout_mode = 2
+text = "Time / Tick"
+
+[node name="Spacer" type="Control" parent="Statistics/Time"]
+custom_minimum_size = Vector2(44, 0)
+layout_mode = 2
+
+[node name="Time" type="Label" parent="Statistics/Time"]
+custom_minimum_size = Vector2(92, 0)
+layout_mode = 2
+
+[node name="VSeparator" type="VSeparator" parent="Statistics/Time"]
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+
+[node name="Tick" type="Label" parent="Statistics/Time"]
+custom_minimum_size = Vector2(64, 0)
+layout_mode = 2
 
 [node name="Data" type="HBoxContainer" parent="Statistics"]
 layout_mode = 2
