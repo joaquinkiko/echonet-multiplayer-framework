@@ -106,7 +106,7 @@ var uid_whitelist : PackedInt64Array:
 	get: return _uid_whitelist
 	set(value): 
 		if is_connected: push_error("'uid_whitelist' must be set before connecting")
-		_uid_whitelist = value
+		else: _uid_whitelist = value
 var _uid_whitelist := PackedInt64Array([])
 
 ## List of UIDs that are blacklisted for server
