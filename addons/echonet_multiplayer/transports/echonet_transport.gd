@@ -77,7 +77,7 @@ var max_peers: int:
 		elif value < 1: push_error("'max_peers' cannot be set to less than 1")
 		elif value > 255: push_error("'max_peers' cannot be set to greater than 255")
 		else: _max_peers = value
-var _max_peers: int = 3
+var _max_peers: int = 32
 
 ## Set whether server is currently joinable-- will reset to true on server start
 var is_joinable: bool:
