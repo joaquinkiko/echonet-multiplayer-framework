@@ -393,6 +393,7 @@ func _check_for_successful_connection() -> void:
 			print("Connected successfully!")
 			if is_server: on_server_initialized.emit()
 			if is_client: on_connected_to_server.emit()
+			if is_server && is_client: on_peer_connected.emit(local_id)
 			if !is_server && !is_client:
 				shutdown(DisconnectReason.INFO_REQUEST_COMPLETED)
 			return
