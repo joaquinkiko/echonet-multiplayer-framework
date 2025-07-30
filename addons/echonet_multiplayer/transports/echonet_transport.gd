@@ -583,6 +583,7 @@ func handle_packet(packet: EchonetPacket) -> void:
 				if packet.owner_id != 0:
 					new_scene.set_meta("owner", client_peers[packet.owner_id])
 					client_peers[packet.owner_id].owned_object_ids.append(packet.owner_id)
+				if new_scene.has_method("_on_spawn"): new_scene.call("_on_spawn", packet.args)
 				Echonet.add_child(new_scene)
 		EchonetPacket.PacketType.DESPAWN:
 			packet = DespawnPacket.new_remote(packet)
@@ -598,7 +599,7 @@ func handle_packet(packet: EchonetPacket) -> void:
 			push_error("Unrecognized packet type: ", packet.type)
 
 ## Spawns an object and returns it's ID
-func spawn(scene_uid: int, owner: EchonetPeer = null) -> int:
+func spawn(scene_uid: int, args := Array([]), owner: EchonetPeer = null) -> int:
 	if !is_server: push_error("Only server can spawn objects")
 	if !ResourceUID.has_id(scene_uid):
 		push_error("Unknown resource uid to spawn: %s"%scene_uid)
@@ -613,9 +614,10 @@ func spawn(scene_uid: int, owner: EchonetPeer = null) -> int:
 		if owner != null:
 			new_scene.set_meta("owner", owner)
 			owner.owned_object_ids.append(id)
+		if new_scene.has_method("_on_spawn"): new_scene.call("_on_spawn", args)
 		Echonet.add_child(new_scene)
-		server_broadcast(SpawnPacket.new(scene_uid, id, owner.id), ServerChannels.SPAWN, true)
-		_late_join_spawn_packets[id] = SpawnPacket.new(scene_uid, id, owner.id)
+		server_broadcast(SpawnPacket.new(scene_uid, id, owner.id, args), ServerChannels.SPAWN, true)
+		_late_join_spawn_packets[id] = SpawnPacket.new(scene_uid, id, owner.id, args)
 	return id
 
 ## Despawns object
