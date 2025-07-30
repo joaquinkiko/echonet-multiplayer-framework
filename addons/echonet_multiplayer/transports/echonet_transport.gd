@@ -614,8 +614,8 @@ func spawn(scene_uid: int, owner: EchonetPeer = null) -> int:
 			new_scene.set_meta("owner", owner)
 			owner.owned_object_ids.append(id)
 		Echonet.add_child(new_scene)
-		server_broadcast(SpawnPacket.new(scene_uid, id), ServerChannels.SPAWN, true)
-		_late_join_spawn_packets[id] = SpawnPacket.new(scene_uid, id)
+		server_broadcast(SpawnPacket.new(scene_uid, id, owner.id), ServerChannels.SPAWN, true)
+		_late_join_spawn_packets[id] = SpawnPacket.new(scene_uid, id, owner.id)
 	return id
 
 ## Despawns object
