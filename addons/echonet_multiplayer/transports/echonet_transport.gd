@@ -144,6 +144,9 @@ var uid_flags: Dictionary[int, int]
 ## Number of flags against a UID before they are banned
 var flags_to_ban: int = 3
 
+## List of spawn packets organized by their ID for late joining clients
+var _late_join_spawn_packets: Dictionary[int, SpawnPacket]
+
 ## Name of current server
 var server_name: String:
 	get: 
@@ -382,6 +385,7 @@ func shutdown(reason: DisconnectReason = DisconnectReason.LOCAL_REQUEST) -> bool
 	on_disconnected.emit(reason)
 	for node in Echonet.spawned_objects.values(): node.queue_free()
 	Echonet.spawned_objects.clear()
+	_late_join_spawn_packets.clear()
 	return true
 
 ## Async method to check if client / server connected successfuly before timing out
@@ -430,6 +434,7 @@ func peer_connected(peer: EchonetPeer) -> void:
 			ServerChannels.BACKEND)
 		print("New connection: ", peer)
 		if !peer.is_self: on_peer_connected.emit.call_deferred(peer.id)
+		if is_server && !peer.is_self: _send_late_join_spawns(peer)
 
 ## Call when peer disconnects
 func peer_disconnected(peer_id: int) -> void:
@@ -440,6 +445,11 @@ func peer_disconnected(peer_id: int) -> void:
 			despawn(object_id)
 	print("Lost connection: ", client_peers.get(peer_id, EchonetPeer.placeholder()))
 	_client_peers.erase(peer_id)
+
+## Called after a client joins to initialize any spawning
+func _send_late_join_spawns(peer: EchonetPeer) -> void:
+	for packet in _late_join_spawn_packets.values():
+		server_message(peer, packet, ServerChannels.SPAWN, true)
 
 ## Should be called every frame
 func handle_events() -> void: pass
@@ -597,6 +607,7 @@ func spawn(scene_uid: int, owner: EchonetPeer = null) -> int:
 			owner.owned_object_ids.append(id)
 		Echonet.add_child(new_scene)
 		server_broadcast(SpawnPacket.new(scene_uid, id), ServerChannels.SPAWN, true)
+		_late_join_spawn_packets[id] = SpawnPacket.new(scene_uid, id)
 	return id
 
 ## Despawns object
@@ -610,6 +621,7 @@ func despawn(object_id: int) -> void:
 					owner.owned_object_ids.remove_at(owner.owned_object_ids.find(object_id))
 				Echonet.spawned_objects[object_id].queue_free()
 			Echonet.spawned_objects.erase(object_id)
+		_late_join_spawn_packets.erase(object_id)
 		server_broadcast(DespawnPacket.new(object_id), ServerChannels.SPAWN, true)
 
 func _get_next_available_object_id() -> int:
