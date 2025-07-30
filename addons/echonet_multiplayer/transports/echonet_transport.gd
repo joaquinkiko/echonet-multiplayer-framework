@@ -576,13 +576,21 @@ func handle_packet(packet: EchonetPacket) -> void:
 			var scene: PackedScene = ResourceLoader.load(ResourceUID.get_id_path(packet.scene_uid))
 			if scene == null: push_error("Spawning error loading resource uid %s"%packet.scene_uid)
 			else:
+				_late_join_spawn_packets[packet.spawn_id] = packet
 				var new_scene := scene.instantiate()
 				new_scene.set_meta("id", packet.spawn_id)
 				Echonet.spawned_objects[packet.spawn_id] = new_scene
+				if packet.owner_id != 0:
+					new_scene.set_meta("owner", client_peers[packet.owner_id])
+					client_peers[packet.owner_id].owned_object_ids.append(packet.owner_id)
 				Echonet.add_child(new_scene)
 		EchonetPacket.PacketType.DESPAWN:
 			packet = DespawnPacket.new_remote(packet)
 			if Echonet.spawned_objects.keys().has(packet.despawn_id):
+				_late_join_spawn_packets.erase(packet.despawn_id)
+				var owner: EchonetPeer = Echonet.spawned_objects[packet.despawn_id].get_meta("owner", null)
+				if owner != null && owner.owned_object_ids.has(packet.despawn_id):
+					owner.owned_object_ids.remove_at(owner.owned_object_ids.find(packet.despawn_id))
 				if Echonet.spawned_objects[packet.despawn_id] != null:
 					Echonet.spawned_objects[packet.despawn_id].queue_free()
 				Echonet.spawned_objects.erase(packet.despawn_id)
