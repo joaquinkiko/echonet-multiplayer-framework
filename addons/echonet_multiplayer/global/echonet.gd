@@ -21,9 +21,6 @@ var transport: EchonetTransport:
 		else: _transport = value
 var _transport: EchonetTransport = LocalTransport.new()
 
-## Collection of currently spawned objects
-var spawned_objects: Dictionary[int, Node]
-
 func _init() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	# Default to randomized player nickname on launch

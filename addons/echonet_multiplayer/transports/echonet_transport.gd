@@ -215,6 +215,9 @@ var has_synced_time: bool
 ## Last time a tick was processed for calculating delta (not server time)
 var _last_tick_time: int
 
+## Collection of current EchoScenes sorted by their [member EchoScene.id]
+var echo_scenes: Dictionary[int, EchoScene]
+
 ## Initialize connection as Client-Server
 func init_server() -> bool:
 	if is_connected:
@@ -383,8 +386,8 @@ func shutdown(reason: DisconnectReason = DisconnectReason.LOCAL_REQUEST) -> bool
 	_tick = 0
 	has_synced_time = false
 	on_disconnected.emit(reason)
-	for node in Echonet.spawned_objects.values(): node.queue_free()
-	Echonet.spawned_objects.clear()
+	for echo_scene in echo_scenes.values(): echo_scene.node.queue_free()
+	echo_scenes.clear()
 	_late_join_spawn_packets.clear()
 	return true
 
@@ -578,23 +581,20 @@ func handle_packet(packet: EchonetPacket) -> void:
 			else:
 				_late_join_spawn_packets[packet.spawn_id] = packet
 				var new_scene := scene.instantiate()
-				new_scene.set_meta("id", packet.spawn_id)
-				Echonet.spawned_objects[packet.spawn_id] = new_scene
+				echo_scenes[packet.spawn_id] = EchoScene.new(new_scene, packet.spawn_id, client_peers.get(packet.owner_id, null))
 				if packet.owner_id != 0:
-					new_scene.set_meta("owner", client_peers[packet.owner_id])
 					client_peers[packet.owner_id].owned_object_ids.append(packet.owner_id)
 				if new_scene.has_method("_on_spawn"): new_scene.call("_on_spawn", packet.args)
 				Echonet.add_child(new_scene)
 		EchonetPacket.PacketType.DESPAWN:
 			packet = DespawnPacket.new_remote(packet)
-			if Echonet.spawned_objects.keys().has(packet.despawn_id):
+			if echo_scenes.keys().has(packet.despawn_id):
 				_late_join_spawn_packets.erase(packet.despawn_id)
-				var owner: EchonetPeer = Echonet.spawned_objects[packet.despawn_id].get_meta("owner", null)
+				var owner: EchonetPeer = echo_scenes[packet.despawn_id].owner
 				if owner != null && owner.owned_object_ids.has(packet.despawn_id):
 					owner.owned_object_ids.remove_at(owner.owned_object_ids.find(packet.despawn_id))
-				if Echonet.spawned_objects[packet.despawn_id] != null:
-					Echonet.spawned_objects[packet.despawn_id].queue_free()
-				Echonet.spawned_objects.erase(packet.despawn_id)
+				if echo_scenes[packet.despawn_id] != null:
+					echo_scenes[packet.despawn_id].node.queue_free()
 		_:
 			push_error("Unrecognized packet type: ", packet.type)
 
@@ -609,10 +609,8 @@ func spawn(scene_uid: int, args := Array([]), owner: EchonetPeer = null) -> int:
 	if scene == null: push_error("Spawning error loading resource uid %s"%scene_uid)
 	else:
 		var new_scene := scene.instantiate()
-		new_scene.set_meta("id", id)
-		Echonet.spawned_objects[id] = new_scene
+		echo_scenes[id] = EchoScene.new(new_scene, id, owner)
 		if owner != null:
-			new_scene.set_meta("owner", owner)
 			owner.owned_object_ids.append(id)
 		if new_scene.has_method("_on_spawn"): new_scene.call("_on_spawn", args)
 		Echonet.add_child(new_scene)
@@ -622,22 +620,22 @@ func spawn(scene_uid: int, args := Array([]), owner: EchonetPeer = null) -> int:
 
 ## Despawns object
 func despawn(object_id: int) -> void:
-	if !Echonet.spawned_objects.has(object_id): push_warning("Cannot despawn non-existent object")
+	if !echo_scenes.has(object_id): push_warning("Cannot despawn non-existent object")
 	else:
-		if Echonet.spawned_objects.keys().has(object_id):
-			if Echonet.spawned_objects[object_id] != null:
-				var owner: EchonetPeer = Echonet.spawned_objects[object_id].get_meta("owner", null)
+		if echo_scenes.keys().has(object_id):
+			if echo_scenes[object_id] != null:
+				var owner: EchonetPeer = echo_scenes[object_id].owner
 				if owner != null && owner.owned_object_ids.has(object_id):
 					owner.owned_object_ids.remove_at(owner.owned_object_ids.find(object_id))
-				Echonet.spawned_objects[object_id].queue_free()
-			Echonet.spawned_objects.erase(object_id)
+				echo_scenes[object_id].node.queue_free()
+			echo_scenes.erase(object_id)
 		_late_join_spawn_packets.erase(object_id)
 		server_broadcast(DespawnPacket.new(object_id), ServerChannels.SPAWN, true)
 
 func _get_next_available_object_id() -> int:
 	var output := 0
-	while Echonet.spawned_objects.keys().has(output):
-		output += 1
+	while echo_scenes.keys().has(output):
+		output +=1
 	return output
 
 ## Returns latency in milliseconds from server
