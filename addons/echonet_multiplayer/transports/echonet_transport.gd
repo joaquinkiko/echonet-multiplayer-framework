@@ -215,9 +215,6 @@ var has_synced_time: bool
 ## Last time a tick was processed for calculating delta (not server time)
 var _last_tick_time: int
 
-## Collection of current EchoScenes sorted by their [member EchoScene.id]
-var echo_scenes: Dictionary[int, EchoScene]
-
 ## Initialize connection as Client-Server
 func init_server() -> bool:
 	if is_connected:
@@ -386,8 +383,7 @@ func shutdown(reason: DisconnectReason = DisconnectReason.LOCAL_REQUEST) -> bool
 	_tick = 0
 	has_synced_time = false
 	on_disconnected.emit(reason)
-	for echo_scene in echo_scenes.values(): echo_scene.node.queue_free()
-	echo_scenes.clear()
+	EchoScene.clear_scenes()
 	_late_join_spawn_packets.clear()
 	return true
 
@@ -581,20 +577,19 @@ func handle_packet(packet: EchonetPacket) -> void:
 			else:
 				_late_join_spawn_packets[packet.spawn_id] = packet
 				var new_scene := scene.instantiate()
-				echo_scenes[packet.spawn_id] = EchoScene.new(new_scene, packet.spawn_id, client_peers.get(packet.owner_id, null))
+				EchoScene.add_scene(EchoScene.new(new_scene, packet.spawn_id, client_peers.get(packet.owner_id, null)))
 				if packet.owner_id != 0:
 					client_peers[packet.owner_id].owned_object_ids.append(packet.owner_id)
 				if new_scene.has_method("_on_spawn"): new_scene.call("_on_spawn", packet.args)
 				Echonet.add_child(new_scene)
 		EchonetPacket.PacketType.DESPAWN:
 			packet = DespawnPacket.new_remote(packet)
-			if echo_scenes.keys().has(packet.despawn_id):
+			if EchoScene.scenes.keys().has(packet.despawn_id):
 				_late_join_spawn_packets.erase(packet.despawn_id)
-				var owner: EchonetPeer = echo_scenes[packet.despawn_id].owner
+				var owner: EchonetPeer = EchoScene.scenes[packet.despawn_id].owner
 				if owner != null && owner.owned_object_ids.has(packet.despawn_id):
 					owner.owned_object_ids.remove_at(owner.owned_object_ids.find(packet.despawn_id))
-				if echo_scenes[packet.despawn_id] != null:
-					echo_scenes[packet.despawn_id].node.queue_free()
+				EchoScene.remove_scene(packet.despawn_id)
 		_:
 			push_error("Unrecognized packet type: ", packet.type)
 
@@ -604,12 +599,12 @@ func spawn(scene_uid: int, args := Array([]), owner: EchonetPeer = null) -> int:
 	if !ResourceUID.has_id(scene_uid):
 		push_error("Unknown resource uid to spawn: %s"%scene_uid)
 		return -1
-	var id := _get_next_available_object_id()
+	var id := EchoScene.get_available_scene_id()
 	var scene: PackedScene = ResourceLoader.load(ResourceUID.get_id_path(scene_uid))
 	if scene == null: push_error("Spawning error loading resource uid %s"%scene_uid)
 	else:
 		var new_scene := scene.instantiate()
-		echo_scenes[id] = EchoScene.new(new_scene, id, owner)
+		EchoScene.add_scene(EchoScene.new(new_scene, id, owner))
 		if owner != null:
 			owner.owned_object_ids.append(id)
 		if new_scene.has_method("_on_spawn"): new_scene.call("_on_spawn", args)
@@ -620,23 +615,15 @@ func spawn(scene_uid: int, args := Array([]), owner: EchonetPeer = null) -> int:
 
 ## Despawns object
 func despawn(object_id: int) -> void:
-	if !echo_scenes.has(object_id): push_warning("Cannot despawn non-existent object")
+	if !EchoScene.scenes.has(object_id): push_warning("Cannot despawn non-existent object")
 	else:
-		if echo_scenes.keys().has(object_id):
-			if echo_scenes[object_id] != null:
-				var owner: EchonetPeer = echo_scenes[object_id].owner
-				if owner != null && owner.owned_object_ids.has(object_id):
-					owner.owned_object_ids.remove_at(owner.owned_object_ids.find(object_id))
-				echo_scenes[object_id].node.queue_free()
-			echo_scenes.erase(object_id)
+		if EchoScene.scenes.keys().has(object_id):
+			var owner: EchonetPeer = EchoScene.scenes[object_id].owner
+			if owner != null && owner.owned_object_ids.has(object_id):
+				owner.owned_object_ids.remove_at(owner.owned_object_ids.find(object_id))
+			EchoScene.remove_scene(object_id)
 		_late_join_spawn_packets.erase(object_id)
 		server_broadcast(DespawnPacket.new(object_id), ServerChannels.SPAWN, true)
-
-func _get_next_available_object_id() -> int:
-	var output := 0
-	while echo_scenes.keys().has(output):
-		output +=1
-	return output
 
 ## Returns latency in milliseconds from server
 func get_server_latency() -> int: return 0

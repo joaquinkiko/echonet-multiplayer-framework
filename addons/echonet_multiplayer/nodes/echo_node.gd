@@ -24,6 +24,6 @@ func _find_parent_echo_scene() -> EchoScene:
 	var possible_parent: Node = self
 	while possible_parent != null:
 		if possible_parent.has_meta("echoscene"):
-			return possible_parent.get_meta("echoscene", null)
+			return possible_parent.get_meta("echoscene", EchoScene.scenes[0])
 		possible_parent = possible_parent.get_parent()
-	return null
+	return EchoScene.scenes[0]

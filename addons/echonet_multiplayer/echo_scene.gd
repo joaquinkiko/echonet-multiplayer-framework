@@ -1,9 +1,35 @@
 class_name EchoScene extends RefCounted
 
+static var scenes: Dictionary[int, EchoScene]
+
 var node: Node
 var id: int
 var owner: EchonetPeer
 var echo_nodes: Dictionary[int, EchoNode]
+
+static func _static_init() -> void:
+	scenes[0] = EchoScene.new(null, 0, null)
+
+## Get next available scene id
+static func get_available_scene_id() -> int:
+	var output := 0
+	while scenes.keys().has(output):
+		output +=1
+	return output
+
+## Remove all current [member scenes]
+static func clear_scenes() -> void:
+	for echo_scene in scenes.values(): if echo_scene.node != null: echo_scene.node.queue_free()
+	scenes.clear()
+
+## Add an [EchoScene] to [member scenes]
+static func add_scene(scene: EchoScene) -> void:
+	scenes[scene.id] = scene
+
+## Remove and [EchoScene] from [member scenes]
+static func remove_scene(scene_id: int) -> void:
+	if scenes[scene_id].node != null: scenes[scene_id].node.queue_free()
+	scenes.erase(scene_id)
 
 func _init(_node: Node = null, _id: int = -1, _owner: EchonetPeer = null) -> void:
 	node = _node
@@ -13,7 +39,7 @@ func _init(_node: Node = null, _id: int = -1, _owner: EchonetPeer = null) -> voi
 		node.set_meta("echoscene", self)
 
 func get_available_echo_node_id() -> int:
-	var output: int = 0
+	var output: int = 1
 	while echo_nodes.has(output):
 		output += 1
 	return output
