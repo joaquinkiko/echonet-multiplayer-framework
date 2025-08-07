@@ -1,7 +1,13 @@
+## Node to be syncronized over the network
 class_name EchoNode extends Node
 
+## Unique ID of this node relative to it's [member parent_echo_scene] ID
 var id: int
+## Parent [EchoScene]
 var parent_echo_scene: EchoScene
+
+## List of valid [EchoFunc] sorted by method call name
+@export var echo_funcs: Dictionary[StringName, EchoFunc]
 
 func _enter_tree() -> void:
 	parent_echo_scene = _find_parent_echo_scene()
@@ -21,3 +27,21 @@ func _find_parent_echo_scene() -> EchoScene:
 			return possible_parent.get_meta("echoscene", EchoScene.scenes[0])
 		possible_parent = possible_parent.get_parent()
 	return EchoScene.scenes[0]
+
+## Calls a method from [echo_funcs] and broadcasts it remotely
+func remote_call(method: StringName, args: Array) -> Variant:
+	if !echo_funcs.has(method):
+		push_warning("Locally called method '%s' not found in %s"%[method, self])
+		return null
+	Echonet.transport.remote_call(self, 
+		method, 
+		echo_funcs[method].encode_args(args), 
+		echo_funcs[method].reliable)
+	return echo_funcs[method].remote_call(args, self)
+
+## Called when receiving a remote method call
+func receive_remote_call(method: StringName, args_data: PackedByteArray, caller: EchonetPeer) -> void:
+	if !echo_funcs.has(method):
+		push_warning("Remotely called method '%s' not found in %s"%[method, self])
+		return
+	echo_funcs[method].receive_remote_call(args_data, self, caller)

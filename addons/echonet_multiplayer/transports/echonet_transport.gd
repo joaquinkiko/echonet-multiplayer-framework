@@ -914,3 +914,7 @@ func update_admin_status(peer: EchonetPeer, promote: bool = true) -> void:
 ## Call at regular intervals to gather statistics in array
 ## 0:data in	1:data out	2:packets in	3:packets out	4:rtt	5:throttle	6:packet loss
 func gather_statistics() -> PackedInt64Array: return [0,0,0,0,0,0,0]
+
+## Calls an [EchoFunc] over the network
+func remote_call(echo_node: EchoNode, method: StringName, args_data: PackedByteArray, reliable: bool) -> void:
+	pass
