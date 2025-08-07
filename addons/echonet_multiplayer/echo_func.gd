@@ -22,6 +22,20 @@ enum CallerFlag {
 
 ## Used to call method locally
 func remote_call(args: Array, echo_node: EchoNode) -> Variant:
+	match caller_flag:
+		CallerFlag.SERVER_ONLY:
+			if !Echonet.transport.client_peers[Echonet.transport.local_id].is_server:
+				push_warning("Attempting to call EchoFunc that can only be called by Server")
+				return
+		CallerFlag.OWNER_ONLY:
+			if Echonet.transport.client_peers[Echonet.transport.local_id] != echo_node.owner:
+				push_warning("Attempting to call EchoFunc that can only be called by Owner")
+				return
+		CallerFlag.SERVER_OR_OWNER:
+			if Echonet.transport.client_peers[Echonet.transport.local_id] != echo_node.owner:
+				if !Echonet.transport.client_peers[Echonet.transport.local_id].is_server:
+					push_warning("Attempting to call EchoFunc that can only be called by Server or Owner")
+					return
 	var node := echo_node.get_node(NodePath(path))
 	assert(node != null, "NodePath '%s' not found for locally called method"%[NodePath(path)])
 	assert(node.has_method(method), "Locally called method '%s' not found in %s"%[method, node])
@@ -29,6 +43,17 @@ func remote_call(args: Array, echo_node: EchoNode) -> Variant:
 
 ## Used to process external request for method
 func receive_remote_call(args_data: PackedByteArray, echo_node: EchoNode, caller: EchonetPeer) -> void:
+	match caller_flag:
+		CallerFlag.SERVER_ONLY:
+			if !caller.is_server:
+				return
+		CallerFlag.OWNER_ONLY:
+			if caller != echo_node.owner:
+				return
+		CallerFlag.SERVER_OR_OWNER:
+			if caller != echo_node.owner:
+				if !caller.is_server:
+					return
 	var node := echo_node.get_node(NodePath(path))
 	assert(node != null, "NodePath '%s' not found for remotely called method"%[NodePath(path)])
 	assert(node.has_method(method), "Remotely called method '%s' not found in %s"%[method, node])
