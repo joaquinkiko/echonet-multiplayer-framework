@@ -25,6 +25,9 @@ var sender: EchonetPeer
 ## Raw encoded data of packet
 var data := PackedByteArray([])
 
+## Channel data was sent over
+var channel: EchonetTransport.ServerChannels
+
 ## Decodes vars from [member data]
 func decode() -> void:
 	type = data.decode_u8(0)

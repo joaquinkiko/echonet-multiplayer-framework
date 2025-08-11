@@ -141,6 +141,7 @@ func handle_events() -> void:
 							packet.sender = EchonetPeer.new(_unverified_enet_peers.find(peer))
 					else:
 						packet.sender = server_peer
+					packet.channel = packet_event[3]
 					packet.data = peer.get_packet()
 					packet.decode()
 					handle_packet(packet)
