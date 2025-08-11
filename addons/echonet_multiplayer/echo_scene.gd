@@ -2,8 +2,11 @@ class_name EchoScene extends RefCounted
 
 const MAX_SCENES := 65535 # Max u16
 
+const MAX_NODES := 255 # Max u8
+
 static var scenes: Dictionary[int, EchoScene]
-static var echo_id_counter: int = 1
+static var echo_id_counter: int = 0
+var echo_node_id_counter: int = 1
 
 var node: Node
 var id: int
@@ -15,9 +18,18 @@ static func _static_init() -> void:
 
 ## Get next available scene id
 static func get_available_scene_id() -> int:
-	var output := 0
+	var output: int = echo_id_counter
+	var has_looped: bool = false
 	while scenes.keys().has(output):
-		output +=1
+		output += 1
+		if output > MAX_SCENES: 
+			if has_looped:
+				push_error("Overflow on EchoScene IDs!!!")
+				break
+			output = 1
+			has_looped = true
+	echo_id_counter = output + 1
+	if echo_id_counter > MAX_SCENES: echo_id_counter = 1
 	return output
 
 ## Remove all current [member scenes]
@@ -47,18 +59,18 @@ func _init(_node: Node = null, _id: int = -1, _owner: EchonetPeer = null) -> voi
 		node.set_meta("echoscene", self)
 
 func get_available_echo_node_id() -> int:
-	var output: int = echo_id_counter
+	var output: int = echo_node_id_counter
 	var has_looped: bool = false
 	while echo_nodes.has(output):
 		output += 1
-		if output > MAX_SCENES: 
+		if output > MAX_NODES: 
 			if has_looped:
-				push_error("Overflow on EchoScene IDs!!!")
+				push_error("Overflow on EchoNode IDs!!!")
 				break
 			output = 1
 			has_looped = true
-	echo_id_counter = output + 1
-	if echo_id_counter > MAX_SCENES: echo_id_counter = 1
+	echo_node_id_counter = output + 1
+	if echo_node_id_counter > MAX_NODES: echo_node_id_counter = 1
 	return output
 
 func is_mine() -> bool:
