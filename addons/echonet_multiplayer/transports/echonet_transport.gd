@@ -594,6 +594,10 @@ func handle_packet(packet: EchonetPacket) -> void:
 				Echonet.add_child(new_scene)
 		EchonetPacket.PacketType.DESPAWN:
 			packet = DespawnPacket.new_remote(packet)
+			var despawn_attempt_timeout: int = Time.get_ticks_msec() + get_server_latency() * 1.5
+			while !EchoScene.scenes.keys().has(packet.despawn_id):
+				if Time.get_ticks_msec() >= despawn_attempt_timeout: break
+				await Engine.get_main_loop().process_frame
 			if EchoScene.scenes.keys().has(packet.despawn_id):
 				_late_join_spawn_packets.erase(packet.despawn_id)
 				var owner: EchonetPeer = EchoScene.scenes[packet.despawn_id].owner
