@@ -45,3 +45,17 @@ func receive_remote_call(method: StringName, args_data: PackedByteArray, caller:
 		push_warning("Remotely called method '%s' not found in %s"%[method, self])
 		return
 	echo_funcs[method].receive_remote_call(args_data, self, caller)
+
+func get_echo_func_id(method: StringName) -> int:
+	var methods := PackedStringArray(echo_funcs.keys().duplicate())
+	methods.sort()
+	for n in methods.size():
+		if methods[n] == method: return n
+	return -1
+
+func find_echo_func_by_id(id: int) -> StringName:
+	var methods := PackedStringArray(echo_funcs.keys().duplicate())
+	methods.sort()
+	if id < methods.size() && id >= 0:
+		return methods[id]
+	else: return &""

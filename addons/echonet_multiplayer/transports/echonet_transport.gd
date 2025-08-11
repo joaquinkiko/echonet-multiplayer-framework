@@ -10,10 +10,11 @@ const MAX_SERVER_TIME := 4294967295 # u32 max value
 ## Channels for sending data
 enum ServerChannels {
 	MAIN = 0,
-	BACKEND = 1,
-	CHAT = 2,
-	SPAWN = 3,
-	MAX = 4
+	MAIN_RELIABLE = 1,
+	BACKEND = 2,
+	CHAT = 3,
+	SPAWN = 4,
+	MAX = 5
 }
 
 ## Reason for client/server being disconnected
@@ -590,6 +591,14 @@ func handle_packet(packet: EchonetPacket) -> void:
 				if owner != null && owner.owned_object_ids.has(packet.despawn_id):
 					owner.owned_object_ids.remove_at(owner.owned_object_ids.find(packet.despawn_id))
 				EchoScene.remove_scene(packet.despawn_id)
+		EchonetPacket.PacketType.RPC:
+			packet = RPCPacket.new_remote(packet)
+			if is_server:
+				if packet.channel != ServerChannels.MAIN || packet.channel != ServerChannels.MAIN_RELIABLE:
+					packet.channel = ServerChannels.MAIN
+				server_broadcast(packet, packet.channel, packet.channel == ServerChannels.MAIN_RELIABLE)
+			if packet.echo_node != null:
+				packet.echo_node.receive_remote_call(packet.method, packet.args_data, packet.caller)
 		_:
 			push_error("Unrecognized packet type: ", packet.type)
 
@@ -917,4 +926,10 @@ func gather_statistics() -> PackedInt64Array: return [0,0,0,0,0,0,0]
 
 ## Calls an [EchoFunc] over the network
 func remote_call(echo_node: EchoNode, method: StringName, args_data: PackedByteArray, reliable: bool) -> void:
-	pass
+	var packet := RPCPacket.new(echo_node, method, args_data, client_peers[local_id])
+	var channel := ServerChannels.MAIN
+	if reliable: channel = ServerChannels.MAIN_RELIABLE
+	if is_server:
+		server_broadcast(packet, channel, reliable)
+	else:
+		client_message(packet, channel, reliable)
