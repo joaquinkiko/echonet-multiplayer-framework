@@ -7,6 +7,8 @@ const MAX_TICKS_PER_FRAME := 8
 ## Time in milliseconds in which server must loop time
 const MAX_SERVER_TIME := 4294967295 # u32 max value
 
+const MAX_PEERS := 255
+
 ## Channels for sending data
 enum ServerChannels {
 	MAIN = 0,
@@ -216,6 +218,8 @@ var has_synced_time: bool
 ## Last time a tick was processed for calculating delta (not server time)
 var _last_tick_time: int
 
+var _peer_id_counter: int = 2
+
 ## Initialize connection as Client-Server
 func init_server() -> bool:
 	if is_connected:
@@ -411,9 +415,11 @@ func hash_password(input: String) -> PackedByteArray:
 
 ## Returns next unused client ID
 func _get_available_id() -> int:
-	var new_id: int = 2
+	var new_id: int = _peer_id_counter
 	while client_peers.has(new_id):
 		new_id += 1
+	_peer_id_counter = new_id + 1
+	if _peer_id_counter > MAX_PEERS: _peer_id_counter = 2
 	return new_id
 
 ## Call when new peer connects-- assigns peer ID if none assigned yet
