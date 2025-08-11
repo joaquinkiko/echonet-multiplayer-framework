@@ -582,6 +582,7 @@ func handle_packet(packet: EchonetPacket) -> void:
 						if Time.get_ticks_msec() >= spawn_attempt_timeout: 
 							push_warning("Spawning EchoScene with missing owner (id=%s)"%packet.owner_id )
 							break
+						await Engine.get_main_loop().process_frame
 				_late_join_spawn_packets[packet.spawn_id] = packet
 				var new_scene := scene.instantiate()
 				var new_echo_scene := EchoScene.new(new_scene, packet.spawn_id, client_peers.get(packet.owner_id, null))
@@ -610,6 +611,7 @@ func handle_packet(packet: EchonetPacket) -> void:
 				while packet.echo_node == null:
 					if Time.get_ticks_msec() >= rpc_attempt_timeout: break
 					packet.attempt_to_decode_node()
+					await Engine.get_main_loop().process_frame
 			if packet.echo_node != null:
 				packet.echo_node.receive_remote_call(packet.method, packet.args_data, packet.caller)
 		_:
