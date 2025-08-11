@@ -576,10 +576,16 @@ func handle_packet(packet: EchonetPacket) -> void:
 			var scene: PackedScene = ResourceLoader.load(ResourceUID.get_id_path(packet.scene_uid))
 			if scene == null: push_error("Spawning error loading resource uid %s"%packet.scene_uid)
 			else:
+				if packet.owner_id != 0:
+					var spawn_attempt_timeout: int = Time.get_ticks_msec() + get_server_latency() * 1.5
+					while !client_peers.has(packet.owner_id):
+						if Time.get_ticks_msec() >= spawn_attempt_timeout: 
+							push_warning("Spawning EchoScene with missing owner (id=%s)"%packet.owner_id )
+							break
 				_late_join_spawn_packets[packet.spawn_id] = packet
 				var new_scene := scene.instantiate()
 				EchoScene.add_scene(EchoScene.new(new_scene, packet.spawn_id, client_peers.get(packet.owner_id, null)))
-				if packet.owner_id != 0:
+				if packet.owner_id != 0 && client_peers.has(packet.owner_id):
 					client_peers[packet.owner_id].owned_object_ids.append(packet.owner_id)
 				if new_scene.has_method("_on_spawn"): new_scene.call("_on_spawn", packet.args)
 				Echonet.add_child(new_scene)

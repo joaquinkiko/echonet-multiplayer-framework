@@ -24,9 +24,9 @@ func _find_parent_echo_scene() -> EchoScene:
 	var possible_parent: Node = self
 	while possible_parent != null:
 		if possible_parent.has_meta("echoscene"):
-			return possible_parent.get_meta("echoscene", EchoScene.scenes[0])
+			return possible_parent.get_meta("echoscene", EchoScene.get_root())
 		possible_parent = possible_parent.get_parent()
-	return EchoScene.scenes[0]
+	return EchoScene.get_root()
 
 ## Calls a method from [echo_funcs] and broadcasts it remotely
 func remote_call(method: StringName, args: Array) -> Variant:
