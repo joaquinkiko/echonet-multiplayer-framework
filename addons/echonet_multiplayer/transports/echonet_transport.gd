@@ -584,7 +584,9 @@ func handle_packet(packet: EchonetPacket) -> void:
 							break
 				_late_join_spawn_packets[packet.spawn_id] = packet
 				var new_scene := scene.instantiate()
-				EchoScene.add_scene(EchoScene.new(new_scene, packet.spawn_id, client_peers.get(packet.owner_id, null)))
+				var new_echo_scene := EchoScene.new(new_scene, packet.spawn_id, client_peers.get(packet.owner_id, null))
+				EchoScene.add_scene(new_echo_scene)
+				new_scene.set_meta("echoscene", new_echo_scene)
 				if packet.owner_id != 0 && client_peers.has(packet.owner_id):
 					client_peers[packet.owner_id].owned_object_ids.append(packet.owner_id)
 				if new_scene.has_method("_on_spawn"): new_scene.call("_on_spawn", packet.args)
@@ -619,7 +621,9 @@ func spawn(scene_uid: int, args := Array([]), owner: EchonetPeer = null) -> int:
 	if scene == null: push_error("Spawning error loading resource uid %s"%scene_uid)
 	else:
 		var new_scene := scene.instantiate()
-		EchoScene.add_scene(EchoScene.new(new_scene, id, owner))
+		var new_echo_scene := EchoScene.new(new_scene, id, owner)
+		EchoScene.add_scene(new_echo_scene)
+		new_scene.set_meta("echoscene", new_echo_scene)
 		if owner != null:
 			owner.owned_object_ids.append(id)
 		if new_scene.has_method("_on_spawn"): new_scene.call("_on_spawn", args)
