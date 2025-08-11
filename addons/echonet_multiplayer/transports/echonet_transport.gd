@@ -605,6 +605,11 @@ func handle_packet(packet: EchonetPacket) -> void:
 				if packet.channel != ServerChannels.MAIN || packet.channel != ServerChannels.MAIN_RELIABLE:
 					packet.channel = ServerChannels.MAIN
 				server_broadcast(packet, packet.channel, packet.channel == ServerChannels.MAIN_RELIABLE)
+			if packet.channel == ServerChannels.MAIN_RELIABLE:
+				var rpc_attempt_timeout: int = Time.get_ticks_msec() + get_server_latency() * 1.5
+				while packet.echo_node == null:
+					if Time.get_ticks_msec() >= rpc_attempt_timeout: break
+					packet.attempt_to_decode_node()
 			if packet.echo_node != null:
 				packet.echo_node.receive_remote_call(packet.method, packet.args_data, packet.caller)
 		_:

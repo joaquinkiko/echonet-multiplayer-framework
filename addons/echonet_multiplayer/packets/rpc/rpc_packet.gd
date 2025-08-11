@@ -40,3 +40,9 @@ func decode() -> void:
 		if echo_node != null: method = echo_node.find_echo_func_by_id(data.decode_u8(4))
 	Echonet.transport.client_peers.get(data.decode_u8(5), EchonetPeer.placeholder())
 	args_data = data.slice(6)
+
+func attempt_to_decode_node() -> void:
+	var echo_scene := EchoScene.scenes.get(data.decode_u16(1), null)
+	if echo_scene != null:
+		echo_node = echo_scene.echo_nodes.get(data.decode_u8(3), null)
+		if echo_node != null: method = echo_node.find_echo_func_by_id(data.decode_u8(4))
