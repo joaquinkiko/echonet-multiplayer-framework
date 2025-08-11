@@ -7,7 +7,7 @@ const MAX_TICKS_PER_FRAME := 8
 ## Time in milliseconds in which server must loop time
 const MAX_SERVER_TIME := 4294967295 # u32 max value
 
-const MAX_PEERS := 255
+const MAX_PEERS := 255 # Max u8
 
 ## Channels for sending data
 enum ServerChannels {
@@ -416,8 +416,15 @@ func hash_password(input: String) -> PackedByteArray:
 ## Returns next unused client ID
 func _get_available_id() -> int:
 	var new_id: int = _peer_id_counter
+	var has_looped: bool = false
 	while client_peers.has(new_id):
 		new_id += 1
+		if new_id > MAX_PEERS:
+			if has_looped:
+				push_error("Overflow on Client IDs!!!")
+				break
+			new_id = 2
+			has_looped = true
 	_peer_id_counter = new_id + 1
 	if _peer_id_counter > MAX_PEERS: _peer_id_counter = 2
 	return new_id

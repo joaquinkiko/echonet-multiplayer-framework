@@ -48,8 +48,15 @@ func _init(_node: Node = null, _id: int = -1, _owner: EchonetPeer = null) -> voi
 
 func get_available_echo_node_id() -> int:
 	var output: int = echo_id_counter
+	var has_looped: bool = false
 	while echo_nodes.has(output):
 		output += 1
+		if output > MAX_SCENES: 
+			if has_looped:
+				push_error("Overflow on EchoScene IDs!!!")
+				break
+			output = 1
+			has_looped = true
 	echo_id_counter = output + 1
 	if echo_id_counter > MAX_SCENES: echo_id_counter = 1
 	return output
