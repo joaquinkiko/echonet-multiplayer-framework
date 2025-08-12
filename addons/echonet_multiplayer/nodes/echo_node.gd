@@ -9,6 +9,12 @@ var parent_echo_scene: EchoScene
 ## List of valid [EchoFunc] sorted by method call name
 @export var echo_funcs: Dictionary[StringName, EchoFunc]
 
+## [EchoVar] to be synced by the server to clients
+@export var state_vars: Array[EchoVar]
+
+## [EchoVar] to be synced by clients to the server
+@export var input_vars: Array[EchoVar]
+
 func _enter_tree() -> void:
 	parent_echo_scene = _find_parent_echo_scene()
 	assert(parent_echo_scene != null, "EchoNode entered tree with no parent EchoScene!")

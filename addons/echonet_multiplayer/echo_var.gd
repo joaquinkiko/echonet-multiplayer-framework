@@ -368,3 +368,19 @@ static func get_var_size(encoding: EncodingType, data: PackedByteArray = []) -> 
 		_:
 			if data.size() < 4: return data.size()
 			return data.decode_var_size(0)
+
+## Returns true if [member path] is a valid [NodePath]
+func is_valid_path(source: Node) -> bool:
+	return source.has_node(NodePath(path))
+
+func get_var(source: Node) -> Variant:
+	if !is_valid_path(source):
+		push_warning("EchoVar attempting to access invalid path: %s"%path)
+		return null
+	return source.get_node(NodePath(path)).get(NodePath(path).get_concatenated_subnames())
+
+func set_var(source: Node, value: Variant) -> void:
+	if !is_valid_path(source):
+		push_warning("EchoVar attempting to set invalid path: %s"%path)
+		return
+	source.get_node(NodePath(path)).set(NodePath(path).get_concatenated_subnames(), value)
