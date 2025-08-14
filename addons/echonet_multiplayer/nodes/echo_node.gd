@@ -65,3 +65,22 @@ func find_echo_func_by_id(id: int) -> StringName:
 	if id < methods.size() && id >= 0:
 		return methods[id]
 	else: return &""
+
+func get_encoded_input() -> PackedByteArray:
+	var data := PackedByteArray([0])
+	data.encode_u8(0, id)
+	for input in input_vars:
+		data.append_array(input.get_var_encoded(self))
+	return data
+
+func decode_and_set_input(data: PackedByteArray) -> void:
+	var position := 1
+	for input in input_vars:
+		input.set_var_encoded(self, data.slice(position))
+		position += input.get_var_size(input.encoding_type, data.slice(position))
+
+func decode_input_data_length(data: PackedByteArray) -> int:
+	var position := 1
+	for input in input_vars:
+		position += input.get_var_size(input.encoding_type, data.slice(position))
+	return position - 1

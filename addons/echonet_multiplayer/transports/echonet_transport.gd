@@ -80,6 +80,9 @@ signal after_tick_loop()
 ## Called when time is resyncronized-- Provides relative change in server time
 signal on_time_resynced(delta_msec: int)
 
+## Called every input tick with delta machine time since last tick (not delta server time)
+signal on_input_tick(delta: float)
+
 ## List of connected client-peers sorted by id (including self)
 var client_peers: Dictionary[int, EchonetPeer]:
 	get: return _client_peers
@@ -219,6 +222,23 @@ var has_synced_time: bool
 var _last_tick_time: int
 
 var _peer_id_counter: int = 2
+
+## Input ticks to simulate per second
+var input_rate: int:
+	get: return _input_rate
+	set(value):
+		if value < 1: push_error("'input_rate' must be atleast 1")
+		if value > 1000: push_error("'input_rate' cannot be greater than 1000")
+		else: _tick_rate = value
+var _input_rate := 120
+
+## Next Input tick time
+var _next_input_tick_time: int = 0
+## Milliseconds per input tick
+var msec_per_input_tick: int:
+	get: return int(1.0 / float(input_rate) * 1000)
+## Last time an input tick was processed for calculating delta (not server time)
+var _last_input_tick_time: int
 
 ## Initialize connection as Client-Server
 func init_server() -> bool:
@@ -474,6 +494,12 @@ func handle_time(delta: float) -> void:
 	if server_time > MAX_SERVER_TIME: 
 		_server_time -= MAX_SERVER_TIME
 		_next_tick_time -= MAX_SERVER_TIME
+		_next_input_tick_time -= MAX_SERVER_TIME
+	if server_time > _next_input_tick_time:
+		_next_input_tick_time = server_time + msec_per_input_tick
+		on_input_tick.emit(float(Time.get_ticks_usec() - _last_input_tick_time) / 1000000.0)
+		collect_input()
+		_last_input_tick_time = Time.get_ticks_usec()
 	var simulated_ticks: int = 0
 	before_tick_loop.emit()
 	while server_time > _next_tick_time:
@@ -631,6 +657,10 @@ func handle_packet(packet: EchonetPacket) -> void:
 					await Engine.get_main_loop().process_frame
 			if packet.echo_node != null:
 				packet.echo_node.receive_remote_call(packet.method, packet.args_data, packet.caller)
+		EchonetPacket.PacketType.INPUT:
+			packet = InputPacket.new_remote(packet)
+			if is_server:
+				decode_and_set_input(packet.input_data, packet.sender)
 		_:
 			push_error("Unrecognized packet type: ", packet.type)
 
@@ -967,3 +997,24 @@ func remote_call(echo_node: EchoNode, method: StringName, args_data: PackedByteA
 		server_broadcast(packet, channel, reliable)
 	else:
 		client_message(packet, channel, reliable)
+
+## Collect input from all [EchoNode]
+func collect_input() -> void:
+	if is_server: return
+	if !client_peers.has(local_id): return
+	var input_data: PackedByteArray
+	for n in client_peers[local_id].owned_object_ids:
+		input_data.append_array(EchoScene.scenes[n].get_encoded_input())
+	client_message(InputPacket.new(input_data), ServerChannels.MAIN, false)
+
+## Decodes received Input data
+func decode_and_set_input(data: PackedByteArray, owner: EchonetPeer) -> void:
+	if !is_server: return
+	if !client_peers.has(local_id): return
+	var position := 0
+	while position < data.size():
+		if EchoScene.scenes.has(data.decode_u16(position)):
+			if EchoScene.scenes[data.decode_u16(position)].owner == owner:
+				EchoScene.scenes[data.decode_u16(position)].decode_and_set_input(data.slice(position))
+			position += EchoScene.scenes[data.decode_u16(position)].decode_input_data_length(data.slice(position))
+		else: return

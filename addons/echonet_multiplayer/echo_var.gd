@@ -377,10 +377,16 @@ func get_var(source: Node) -> Variant:
 	if !is_valid_path(source):
 		push_warning("EchoVar attempting to access invalid path: %s"%path)
 		return null
-	return source.get_node(NodePath(path)).get(NodePath(path).get_concatenated_subnames())
+	return source.get_node(NodePath(path)).get_indexed(NodePath(NodePath(path).get_concatenated_subnames()).get_as_property_path())
 
 func set_var(source: Node, value: Variant) -> void:
 	if !is_valid_path(source):
 		push_warning("EchoVar attempting to set invalid path: %s"%path)
 		return
-	source.get_node(NodePath(path)).set(NodePath(path).get_concatenated_subnames(), value)
+	source.get_node(NodePath(path)).set_indexed(NodePath(NodePath(path).get_concatenated_subnames()).get_as_property_path(), value)
+
+func get_var_encoded(source: Node) -> PackedByteArray:
+	return encode_var(encoding_type, get_var(source))
+
+func set_var_encoded(source: Node, data: PackedByteArray) -> void:
+	set_var(source, decode_var(encoding_type, data))

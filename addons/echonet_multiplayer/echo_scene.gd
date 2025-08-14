@@ -76,3 +76,22 @@ func get_available_echo_node_id() -> int:
 func is_mine() -> bool:
 	if owner == null: return false
 	else: return owner.is_self
+
+func get_encoded_input() -> PackedByteArray:
+	var data := PackedByteArray([0,0])
+	data.encode_u16(0, id)
+	for echo_node in echo_nodes.values():
+		data.append_array(echo_node.get_encoded_input())
+	return data
+
+func decode_and_set_input(data: PackedByteArray) -> void:
+	var position := 2
+	for echo_node in echo_nodes.values():
+		echo_node.decode_and_set_input(data.slice(position))
+		position += echo_node.decode_input_data_length(data.slice(position))
+
+func decode_input_data_length(data: PackedByteArray) -> int:
+	var position := 2
+	for echo_node in echo_nodes.values():
+		position += echo_node.decode_input_data_length(data.slice(position))
+	return position + 1
