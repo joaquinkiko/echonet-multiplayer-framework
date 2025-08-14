@@ -42,10 +42,19 @@ enum EncodingType {
 	PACKED_BYTE_ARRAY,
 }
 
+## Types of interpolation to use
+enum InterpolationType {
+	NONE,
+	SIMPLE_LERP,
+}
+
 ## [NodePath] to parameter to syncronize
 @export var path: StringName
 ## Encoding type to use for parameter
 @export var encoding_type := EncodingType.VARIANT
+## Interpolation to use
+@export var interpolation := InterpolationType.NONE
+
 
 ## Static method to encode value based on [EncodingType]
 static func encode_var(encoding: EncodingType, value: Variant) -> PackedByteArray:
@@ -383,6 +392,9 @@ func set_var(source: Node, value: Variant) -> void:
 	if !is_valid_path(source):
 		push_warning("EchoVar attempting to set invalid path: %s"%path)
 		return
+	match interpolation:
+		InterpolationType.SIMPLE_LERP:
+			value = lerp(get_var(source), value, 0.5)
 	source.get_node(NodePath(path)).set_indexed(NodePath(NodePath(path).get_concatenated_subnames()).get_as_property_path(), value)
 
 func get_var_encoded(source: Node) -> PackedByteArray:
