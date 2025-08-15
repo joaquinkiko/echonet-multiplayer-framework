@@ -16,6 +16,7 @@ enum PacketType {
 	DESPAWN = 10,
 	RPC = 11,
 	INPUT = 12,
+	STATE = 13,
 }
 
 ## [PacketType] to sign first byte of packet with

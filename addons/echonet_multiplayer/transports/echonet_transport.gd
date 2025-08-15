@@ -240,6 +240,20 @@ var msec_per_input_tick: int:
 ## Last time an input tick was processed for calculating delta (not server time)
 var _last_input_tick_time: int
 
+## Last recorded snapshot
+var last_snapshot: EchoSnapshot
+## Stored [EchoSnapshot] of past ticks, sorted by tick
+var stored_snapshots: Dictionary[int, EchoSnapshot]
+## Last acknowledged [EchoSnapshot] sorted by client
+var client_ack_snapshots: Dictionary[int, EchoSnapshot]
+## Tick of last [EchoSnapshot] received by server
+var last_received_snapshot_tick: int
+## 8-bit Flag for each [EchoSnapshot] received prior to [member last_received_snapshot_tick]
+var old_received_snapshots_flags: int
+## Limit on stored snapshots
+var max_stored_snapshots: int = 60
+
+
 ## Initialize connection as Client-Server
 func init_server() -> bool:
 	if is_connected:
@@ -249,6 +263,11 @@ func init_server() -> bool:
 	_server_time = MAX_SERVER_TIME
 	_tick = 0
 	_next_tick_time = MAX_SERVER_TIME
+	last_snapshot = null
+	stored_snapshots.clear()
+	client_ack_snapshots.clear()
+	last_received_snapshot_tick = 0
+	old_received_snapshots_flags = 0
 	has_synced_time = true
 	is_joinable = true
 	_is_connected = true
@@ -274,6 +293,11 @@ func init_client() -> bool:
 	_server_time = 0
 	_tick = 0
 	_next_tick_time = 0
+	last_snapshot = null
+	stored_snapshots.clear()
+	client_ack_snapshots.clear()
+	last_received_snapshot_tick = 0
+	old_received_snapshots_flags = 0
 	has_synced_time = false
 	_is_connected = true
 	_is_client = true
@@ -314,6 +338,11 @@ func init_headless_server() -> bool:
 	_server_time = 0
 	_tick = 0
 	_next_tick_time = 0
+	last_snapshot = null
+	stored_snapshots.clear()
+	client_ack_snapshots.clear()
+	last_received_snapshot_tick = 0
+	old_received_snapshots_flags = 0
 	has_synced_time = true
 	is_joinable = true
 	_is_connected = true
@@ -405,6 +434,11 @@ func shutdown(reason: DisconnectReason = DisconnectReason.LOCAL_REQUEST) -> bool
 	uid_blacklist.clear()
 	uid_whitelist.clear()
 	_server_time = 0
+	last_snapshot = null
+	stored_snapshots.clear()
+	client_ack_snapshots.clear()
+	last_received_snapshot_tick = 0
+	old_received_snapshots_flags = 0
 	_tick = 0
 	has_synced_time = false
 	on_disconnected.emit(reason)
@@ -468,6 +502,7 @@ func peer_connected(peer: EchonetPeer) -> void:
 		print("New connection: ", peer)
 		if !peer.is_self: on_peer_connected.emit.call_deferred(peer.id)
 		if is_server && !peer.is_self: _send_late_join_spawns(peer)
+		client_ack_snapshots[peer.id] = get_base_snapshot()
 
 ## Call when peer disconnects
 func peer_disconnected(peer_id: int) -> void:
@@ -476,6 +511,7 @@ func peer_disconnected(peer_id: int) -> void:
 		server_broadcast(IDUnassignmentPacket.new(peer_id), ServerChannels.BACKEND)
 		for object_id in client_peers.get(peer_id, EchonetPeer.placeholder()).owned_object_ids.duplicate():
 			despawn(object_id)
+		client_ack_snapshots.erase(peer_id)
 	print("Lost connection: ", client_peers.get(peer_id, EchonetPeer.placeholder()))
 	_client_peers.erase(peer_id)
 
@@ -507,6 +543,7 @@ func handle_time(delta: float) -> void:
 		_next_tick_time += msec_per_tick
 		simulated_ticks += 1
 		on_tick.emit(float(Time.get_ticks_usec() - _last_tick_time) / 1000000.0)
+		collect_state()
 		_last_tick_time = Time.get_ticks_usec()
 		if simulated_ticks > MAX_TICKS_PER_FRAME: break
 	after_tick_loop.emit()
@@ -661,6 +698,26 @@ func handle_packet(packet: EchonetPacket) -> void:
 			packet = InputPacket.new_remote(packet)
 			if is_server:
 				decode_and_set_input(packet.input_data, packet.sender)
+		EchonetPacket.PacketType.STATE:
+			packet = StatePacket.new_remote(packet)
+			if is_client:
+				last_snapshot = EchoSnapshot.new_from_state_packet(packet)
+				apply_snapshot(last_snapshot)
+				stored_snapshots[tick] = last_snapshot
+				stored_snapshots.erase(tick - max_stored_snapshots)
+				var received_ticks := flags_to_received_ticks(last_received_snapshot_tick, old_received_snapshots_flags)
+				if packet.tick > last_received_snapshot_tick:
+					last_received_snapshot_tick = packet.tick
+					old_received_snapshots_flags = 0
+					var i := -1
+					for n in range(packet.tick - 8, packet.tick):
+						i += 1
+						if received_ticks.has(n):
+							old_received_snapshots_flags = old_received_snapshots_flags | n
+				elif last_received_snapshot_tick - packet.tick == 0: pass
+				elif last_received_snapshot_tick - packet.tick <= 8:
+					var flag := int(last_received_snapshot_tick - packet.tick)
+					old_received_snapshots_flags = old_received_snapshots_flags | flag
 		_:
 			push_error("Unrecognized packet type: ", packet.type)
 
@@ -1018,3 +1075,41 @@ func decode_and_set_input(data: PackedByteArray, owner: EchonetPeer) -> void:
 				EchoScene.scenes[data.decode_u16(position)].decode_and_set_input(data.slice(position))
 			position += EchoScene.scenes[data.decode_u16(position)].decode_input_data_length(data.slice(position))
 		else: return
+
+func collect_state() -> void:
+	if !is_server: return
+	var new_snapshot := EchoSnapshot.new()
+	for n in EchoScene.scenes.keys():
+		for i in EchoScene.scenes[n].echo_nodes.keys():
+			new_snapshot.world_state[EchoScene.scenes[n].echo_nodes[i].get_combined_id()] = EchoScene.scenes[n].echo_nodes[i].get_encoded_state()
+	last_snapshot = new_snapshot
+	stored_snapshots[tick] = new_snapshot
+	stored_snapshots.erase(tick - max_stored_snapshots)
+	for n in client_peers:
+		if client_peers[n].is_self: continue
+		var delta_snapshot := EchoSnapshot.delta_snapshot(client_ack_snapshots.get(n, get_base_snapshot()), new_snapshot)
+		server_message(client_peers[n], StatePacket.new(tick, delta_snapshot.get_state_data()))
+
+func get_base_snapshot() -> EchoSnapshot:
+	var base_snapshot := EchoSnapshot.new()
+	for n in EchoScene.scenes.keys():
+		for i in EchoScene.scenes[n].echo_nodes.keys():
+			base_snapshot.world_state[EchoScene.scenes[n].echo_nodes[i].get_combined_id()] = EchoScene.scenes[n].echo_nodes[i].get_base_encoded_state()
+	return base_snapshot
+
+func apply_snapshot(snapshot: EchoSnapshot) -> void:
+	var scenes: Dictionary[int, PackedInt32Array]
+	for n in snapshot.world_state.keys():
+		EchoScene.scenes[EchoNode.get_scene_id_from_combined_id(n)]\
+			.echo_nodes[EchoNode.get_node_id_from_combined_id(n)]\
+			.decode_and_set_state(snapshot.world_state[n])
+
+func flags_to_received_ticks(last_tick: int, flags: int) -> PackedInt32Array:
+	var output := PackedInt32Array([last_tick])
+	var i: int = -1
+	for n in range(last_tick - 8, last_tick):
+		i += 1
+		if n < 0: continue
+		if flags & i == 0: continue
+		output.append(n)
+	return output

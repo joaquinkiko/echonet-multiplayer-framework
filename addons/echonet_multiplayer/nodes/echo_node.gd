@@ -84,3 +84,46 @@ func decode_input_data_length(data: PackedByteArray) -> int:
 	for input in input_vars:
 		position += input.get_var_size(input.encoding_type, data.slice(position))
 	return position - 1
+
+## Returns a combined 24-bit int based on 16-bit scene ID and 8 bit-node ID
+func get_combined_id() -> int:
+	var data := PackedByteArray([0,0,0,0])
+	data.encode_u16(0, parent_echo_scene.id)
+	data.encode_u8(2, id)
+	return data.decode_u32(0)
+
+static func get_scene_id_from_combined_id(combined_id: int) -> int:
+	var data := PackedByteArray([0,0,0,0])
+	data.encode_u32(0, combined_id)
+	return data.decode_u16(0)
+
+static func get_node_id_from_combined_id(combined_id: int) -> int:
+	var data := PackedByteArray([0,0,0,0])
+	data.encode_u32(0, combined_id)
+	return data.decode_u8(2)
+
+func get_encoded_state() -> PackedByteArray:
+	var data := PackedByteArray([0])
+	data.encode_u8(0, id)
+	for state in state_vars:
+		data.append_array(state.get_var_encoded(self))
+	return data
+
+func decode_and_set_state(data: PackedByteArray) -> void:
+	var position := 1
+	for state in state_vars:
+		state.set_var_encoded(self, data.slice(position))
+		position += state.get_var_size(state.encoding_type, data.slice(position))
+
+func decode_state_data_length(data: PackedByteArray) -> int:
+	var position := 1
+	for state in state_vars:
+		position += state.get_var_size(state.encoding_type, data.slice(position))
+	return position - 1
+
+func get_base_encoded_state() -> PackedByteArray:
+	var data := PackedByteArray([0])
+	data.encode_u8(0, id)
+	for state in state_vars:
+		data.append_array(state.get_base_encoded(state.encoding_type))
+	return data

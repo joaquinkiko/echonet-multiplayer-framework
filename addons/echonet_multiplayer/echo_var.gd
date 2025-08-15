@@ -390,3 +390,80 @@ func get_var_encoded(source: Node) -> PackedByteArray:
 
 func set_var_encoded(source: Node, data: PackedByteArray) -> void:
 	set_var(source, decode_var(encoding_type, data))
+
+static func get_base_encoded(encoding: EncodingType) -> PackedByteArray:
+	match encoding:
+		EncodingType.I_U8:
+			return encode_var(encoding, 0)
+		EncodingType.I_U16:
+			return encode_var(encoding, 0)
+		EncodingType.I_U32:
+			return encode_var(encoding, 0)
+		EncodingType.I_U64:
+			return encode_var(encoding, 0)
+		EncodingType.I_S8:
+			return encode_var(encoding, 0)
+		EncodingType.I_S16:
+			return encode_var(encoding, 0)
+		EncodingType.I_S32:
+			return encode_var(encoding, 0)
+		EncodingType.I_S64:
+			return encode_var(encoding, 0)
+		EncodingType.F_16:
+			return encode_var(encoding, 0)
+		EncodingType.F_32:
+			return encode_var(encoding, 0)
+		EncodingType.F_64:
+			return encode_var(encoding, 0)
+		EncodingType.BOOL:
+			return encode_var(encoding, false)
+		EncodingType.ASCII_CHARS:
+			return encode_var(encoding, "")
+		EncodingType.PACKED_BYTE_ARRAY:
+			return encode_var(encoding, [])
+		EncodingType.VECTOR2_F16:
+			return encode_var(encoding, Vector2(0,0))
+		EncodingType.VECTOR2_F32:
+			return encode_var(encoding, Vector2(0,0))
+		EncodingType.VECTOR2_F64:
+			return encode_var(encoding, Vector2(0,0))
+		EncodingType.VECTOR3_F16:
+			return encode_var(encoding, Vector3(0,0,0))
+		EncodingType.VECTOR3_F32:
+			return encode_var(encoding, Vector3(0,0,0))
+		EncodingType.VECTOR3_F64:
+			return encode_var(encoding, Vector3(0,0,0))
+		EncodingType.VECTOR2I_U8:
+			return encode_var(encoding, Vector2i(0,0))
+		EncodingType.VECTOR2I_U16:
+			return encode_var(encoding, Vector2i(0,0))
+		EncodingType.VECTOR2I_U32:
+			return encode_var(encoding, Vector2i(0,0))
+		EncodingType.VECTOR2I_U64:
+			return encode_var(encoding, Vector2i(0,0))
+		EncodingType.VECTOR2I_S8:
+			return encode_var(encoding, Vector2i(0,0))
+		EncodingType.VECTOR2I_S16:
+			return encode_var(encoding, Vector2i(0,0))
+		EncodingType.VECTOR2I_S32:
+			return encode_var(encoding, Vector2i(0,0))
+		EncodingType.VECTOR2I_S64:
+			return encode_var(encoding, Vector2i(0,0))
+		EncodingType.VECTOR3I_U8:
+			return encode_var(encoding, Vector3i(0,0,0))
+		EncodingType.VECTOR3I_U16:
+			return encode_var(encoding, Vector3i(0,0,0))
+		EncodingType.VECTOR3I_U32:
+			return encode_var(encoding, Vector3i(0,0,0))
+		EncodingType.VECTOR3I_U64:
+			return encode_var(encoding, Vector3i(0,0,0))
+		EncodingType.VECTOR3I_S8:
+			return encode_var(encoding, Vector3i(0,0,0))
+		EncodingType.VECTOR3I_S16:
+			return encode_var(encoding, Vector3i(0,0,0))
+		EncodingType.VECTOR3I_S32:
+			return encode_var(encoding, Vector3i(0,0,0))
+		EncodingType.VECTOR3I_S64:
+			return encode_var(encoding, Vector3i(0,0,0))
+		_:
+			return encode_var(encoding, null)
