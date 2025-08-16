@@ -698,6 +698,9 @@ func handle_packet(packet: EchonetPacket) -> void:
 			packet = InputPacket.new_remote(packet)
 			if is_server:
 				decode_and_set_input(packet.input_data, packet.sender)
+				var last_snapshot := client_ack_snapshots.get(packet.sender.id, get_base_snapshot())
+				if packet.last_ack_tick > last_snapshot.tick:
+					client_ack_snapshots[packet.sender.id] = EchoSnapshot.layer_snapshots(last_snapshot, stored_snapshots.get(packet.last_ack_tick, last_snapshot))
 		EchonetPacket.PacketType.STATE:
 			packet = StatePacket.new_remote(packet)
 			if is_client:
@@ -1062,7 +1065,10 @@ func collect_input() -> void:
 	var input_data: PackedByteArray
 	for n in client_peers[local_id].owned_object_ids:
 		input_data.append_array(EchoScene.scenes[n].get_encoded_input())
-	client_message(InputPacket.new(input_data), ServerChannels.MAIN, false)
+	client_message(
+		InputPacket.new(input_data, last_received_snapshot_tick, old_received_snapshots_flags),
+		ServerChannels.MAIN, 
+		false)
 
 ## Decodes received Input data
 func decode_and_set_input(data: PackedByteArray, owner: EchonetPeer) -> void:

@@ -2,10 +2,14 @@
 class_name InputPacket extends EchonetPacket
 
 var input_data: PackedByteArray
+var last_ack_tick: int
+var old_ack_ticks_flags: int
 
-func _init(_input_data := PackedByteArray([])) -> void:
+func _init(_input_data := PackedByteArray([]), _last_ack_tick := 0, _old_ack_ticks_flags := 0) -> void:
 	type = PacketType.INPUT
 	input_data = _input_data
+	last_ack_tick = _last_ack_tick
+	old_ack_ticks_flags = _old_ack_ticks_flags
 
 
 ## Transforms generic [EchonetPacket] for use after being received from remote peer
@@ -18,9 +22,14 @@ static func new_remote(packet: EchonetPacket) -> InputPacket:
 
 func encode() -> PackedByteArray:
 	super.encode()
+	data.resize(4)
+	data.encode_u16(1, last_ack_tick)
+	data.encode_u8(3, old_ack_ticks_flags)
 	data.append_array(input_data)
 	return data
 
 func decode() -> void:
 	super.decode()
-	input_data = data.slice(1)
+	last_ack_tick = data.decode_u16(1)
+	old_ack_ticks_flags = data.decode_u8(3)
+	input_data = data.slice(4)
