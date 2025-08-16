@@ -260,9 +260,10 @@ func init_server() -> bool:
 		push_warning("Cannot create connection whilst one is already open!")
 		return false
 	print("Initializing server...")
-	_server_time = MAX_SERVER_TIME
+	_server_time = 0
 	_tick = 0
-	_next_tick_time = MAX_SERVER_TIME
+	_next_tick_time = 0
+	_next_input_tick_time = 0
 	last_snapshot = null
 	stored_snapshots.clear()
 	client_ack_snapshots.clear()
@@ -293,6 +294,7 @@ func init_client() -> bool:
 	_server_time = 0
 	_tick = 0
 	_next_tick_time = 0
+	_next_input_tick_time = 0
 	last_snapshot = null
 	stored_snapshots.clear()
 	client_ack_snapshots.clear()
@@ -338,6 +340,7 @@ func init_headless_server() -> bool:
 	_server_time = 0
 	_tick = 0
 	_next_tick_time = 0
+	_next_input_tick_time = 0
 	last_snapshot = null
 	stored_snapshots.clear()
 	client_ack_snapshots.clear()
@@ -1064,6 +1067,7 @@ func collect_input() -> void:
 	if !client_peers.has(local_id): return
 	var input_data: PackedByteArray
 	for n in client_peers[local_id].owned_object_ids:
+		if !EchoScene.scenes.has(n): return
 		input_data.append_array(EchoScene.scenes[n].get_encoded_input())
 	client_message(
 		InputPacket.new(input_data, last_received_snapshot_tick, old_received_snapshots_flags),
