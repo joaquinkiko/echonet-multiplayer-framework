@@ -1124,6 +1124,8 @@ func apply_snapshot(snapshot: EchoSnapshot) -> void:
 	last_snapshot = snapshot
 	var scenes: Dictionary[int, PackedInt32Array]
 	for n in snapshot.world_state.keys():
+		if !EchoScene.scenes.has(EchoNode.get_scene_id_from_combined_id(n)): continue
+		if !EchoScene.scenes[EchoNode.get_scene_id_from_combined_id(n)].echo_nodes.has(EchoNode.get_node_id_from_combined_id(n)): continue
 		EchoScene.scenes[EchoNode.get_scene_id_from_combined_id(n)]\
 			.echo_nodes[EchoNode.get_node_id_from_combined_id(n)]\
 			.decode_and_set_state(snapshot.world_state[n])
