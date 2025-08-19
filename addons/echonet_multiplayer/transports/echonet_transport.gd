@@ -251,7 +251,7 @@ var last_received_snapshot_tick: int
 ## 8-bit Flag for each [EchoSnapshot] received prior to [member last_received_snapshot_tick]
 var old_received_snapshots_flags: int
 ## Limit on stored snapshots
-var max_stored_snapshots: int = 60
+var max_stored_snapshots: int = 120
 
 
 ## Initialize connection as Client-Server
