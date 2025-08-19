@@ -255,6 +255,7 @@ var old_received_snapshots_flags: int
 ## Limit on stored snapshots
 var max_stored_snapshots: int = 120
 
+var last_frame_delta: float
 
 ## Initialize connection as Client-Server
 func init_server() -> bool:
@@ -530,6 +531,7 @@ func handle_events() -> void: pass
 
 ## Should be called every frame
 func handle_time(delta: float) -> void:
+	last_frame_delta = delta
 	if !has_synced_time: return
 	_server_time += int(delta * 1000)
 	if server_time > MAX_SERVER_TIME: 
