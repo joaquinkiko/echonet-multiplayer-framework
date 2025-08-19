@@ -9,6 +9,8 @@ const MAX_SERVER_TIME := 4294967295 # u32 max value
 
 const MAX_PEERS := 255 # Max u8
 
+const MAX_TIME_DESYNC := 1000
+
 ## Channels for sending data
 enum ServerChannels {
 	MAIN = 0,
@@ -705,6 +707,12 @@ func handle_packet(packet: EchonetPacket) -> void:
 			if is_server:
 				decode_and_set_input(packet.input_data, packet.sender)
 				var _last_snapshot := client_ack_snapshots.get(packet.sender.id, get_base_snapshot())
+				var time_difference: int = server_time - packet.time
+				if time_difference > MAX_TIME_DESYNC || time_difference < -MAX_TIME_DESYNC:
+					server_message(packet.sender, 
+						TimeSyncPacket.new(server_time, tick_rate, tick), 
+						ServerChannels.BACKEND,
+						false)
 				#if packet.last_ack_tick > _last_snapshot.tick:
 				#	client_ack_snapshots[packet.sender.id] = EchoSnapshot.layer_snapshots(_last_snapshot, stored_snapshots.get(packet.last_ack_tick, _last_snapshot))
 		EchonetPacket.PacketType.STATE:
@@ -1074,7 +1082,7 @@ func collect_input() -> void:
 		if !EchoScene.scenes.has(n): return
 		input_data.append_array(EchoScene.scenes[n].get_encoded_input())
 	client_message(
-		InputPacket.new(input_data, last_received_snapshot_tick, old_received_snapshots_flags, tick),
+		InputPacket.new(input_data, last_received_snapshot_tick, old_received_snapshots_flags, tick, server_time),
 		ServerChannels.MAIN, 
 		false)
 
