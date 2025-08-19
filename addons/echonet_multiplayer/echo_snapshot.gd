@@ -18,8 +18,9 @@ static func new_from_state_packet(packet: StatePacket) -> EchoSnapshot:
 		position += 3
 		for n in count:
 			var node := packet.state_data.decode_u8(position)
-			EchoScene.scenes[scene].echo_nodes[node].decode_and_set_state(packet.state_data.slice(position))
-			position += EchoScene.scenes[scene].echo_nodes[node].decode_state_data_length(packet.state_data.slice(position)) + 1
+			var length := EchoScene.scenes[scene].echo_nodes[node].decode_state_data_length(packet.state_data.slice(position))
+			output.world_state[EchoScene.scenes[scene].echo_nodes[node].get_combined_id()] = packet.state_data.slice(position, position + length + 1)
+			position += length + 1
 	return output
 
 func get_state_data() -> PackedByteArray:

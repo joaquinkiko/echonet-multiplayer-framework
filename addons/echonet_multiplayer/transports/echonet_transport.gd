@@ -547,6 +547,9 @@ func handle_time(delta: float) -> void:
 		simulated_ticks += 1
 		on_tick.emit(float(Time.get_ticks_usec() - _last_tick_time) / 1000000.0)
 		collect_state()
+		if !is_server:
+			if stored_snapshots.has(tick): apply_snapshot(stored_snapshots[tick])
+		stored_snapshots.erase(tick - max_stored_snapshots)
 		_last_tick_time = Time.get_ticks_usec()
 		if simulated_ticks > MAX_TICKS_PER_FRAME: break
 	after_tick_loop.emit()
@@ -702,15 +705,16 @@ func handle_packet(packet: EchonetPacket) -> void:
 			if is_server:
 				decode_and_set_input(packet.input_data, packet.sender)
 				var last_snapshot := client_ack_snapshots.get(packet.sender.id, get_base_snapshot())
-				if packet.last_ack_tick > last_snapshot.tick:
-					client_ack_snapshots[packet.sender.id] = EchoSnapshot.layer_snapshots(last_snapshot, stored_snapshots.get(packet.last_ack_tick, last_snapshot))
+				#if packet.last_ack_tick > last_snapshot.tick:
+				#	client_ack_snapshots[packet.sender.id] = EchoSnapshot.layer_snapshots(last_snapshot, stored_snapshots.get(packet.last_ack_tick, last_snapshot))
 		EchonetPacket.PacketType.STATE:
 			packet = StatePacket.new_remote(packet)
 			if is_client:
-				last_snapshot = EchoSnapshot.new_from_state_packet(packet)
-				apply_snapshot(last_snapshot)
-				stored_snapshots[tick] = last_snapshot
-				stored_snapshots.erase(tick - max_stored_snapshots)
+				if packet.tick >= tick - max_stored_snapshots:
+					stored_snapshots[packet.tick] = EchoSnapshot.new_from_state_packet(packet)
+					if packet.tick <= tick && last_snapshot != null && last_snapshot.tick < packet.tick:
+						last_snapshot = stored_snapshots[packet.tick]
+						apply_snapshot(last_snapshot)
 				var received_ticks := flags_to_received_ticks(last_received_snapshot_tick, old_received_snapshots_flags)
 				if packet.tick > last_received_snapshot_tick:
 					last_received_snapshot_tick = packet.tick
@@ -1070,7 +1074,7 @@ func collect_input() -> void:
 		if !EchoScene.scenes.has(n): return
 		input_data.append_array(EchoScene.scenes[n].get_encoded_input())
 	client_message(
-		InputPacket.new(input_data, last_received_snapshot_tick, old_received_snapshots_flags),
+		InputPacket.new(input_data, last_received_snapshot_tick, old_received_snapshots_flags, tick),
 		ServerChannels.MAIN, 
 		false)
 
@@ -1094,7 +1098,6 @@ func collect_state() -> void:
 			new_snapshot.world_state[EchoScene.scenes[n].echo_nodes[i].get_combined_id()] = EchoScene.scenes[n].echo_nodes[i].get_encoded_state()
 	last_snapshot = new_snapshot
 	stored_snapshots[tick] = new_snapshot
-	stored_snapshots.erase(tick - max_stored_snapshots)
 	for n in client_peers:
 		if client_peers[n].is_self: continue
 		var delta_snapshot := EchoSnapshot.delta_snapshot(client_ack_snapshots.get(n, get_base_snapshot()), new_snapshot)
