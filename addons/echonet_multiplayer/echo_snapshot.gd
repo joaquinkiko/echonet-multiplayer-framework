@@ -16,8 +16,10 @@ static func new_from_state_packet(packet: StatePacket) -> EchoSnapshot:
 		var scene := packet.state_data.decode_u16(position)
 		var count := packet.state_data.decode_u8(position + 2)
 		position += 3
+		if !EchoScene.scenes.has(scene): return output
 		for n in count:
 			var node := packet.state_data.decode_u8(position)
+			if !EchoScene.scenes[scene].echo_nodes.has(node): return output
 			var length := EchoScene.scenes[scene].echo_nodes[node].decode_state_data_length(packet.state_data.slice(position))
 			output.world_state[EchoScene.scenes[scene].echo_nodes[node].get_combined_id()] = packet.state_data.slice(position, position + length + 1)
 			position += length + 1
