@@ -30,6 +30,8 @@ var _is_admin: bool = false
 ## IDs of spawned objects owned
 var owned_object_ids: PackedInt32Array
 
+var rtt: int = 0
+
 func _init(client_id: int) -> void:
 	_id = client_id
 

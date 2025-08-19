@@ -11,6 +11,8 @@ const MAX_PEERS := 255 # Max u8
 
 const MAX_TIME_DESYNC := 1000
 
+const MAX_PEER_RTT := 1000
+
 ## Channels for sending data
 enum ServerChannels {
 	MAIN = 0,
@@ -40,6 +42,7 @@ enum DisconnectReason {
 	INFO_REQUEST_COMPLETED = 12,
 	INFO_REQUEST_TIMEOUT = 13,
 	FAILED_TO_VERIFY = 14,
+	POOR_CONNECTION = 15,
 }
 
 ## Result of authentication attempt
@@ -257,6 +260,9 @@ var max_stored_snapshots: int = 120
 
 var last_frame_delta: float
 
+var _next_service_time: int
+var msec_per_service: int = 1000
+
 ## Initialize connection as Client-Server
 func init_server() -> bool:
 	if is_connected:
@@ -267,6 +273,7 @@ func init_server() -> bool:
 	_tick = 0
 	_next_tick_time = 0
 	_next_input_tick_time = 0
+	_next_service_time = 0
 	last_snapshot = null
 	stored_snapshots.clear()
 	client_ack_snapshots.clear()
@@ -298,6 +305,7 @@ func init_client() -> bool:
 	_tick = 0
 	_next_tick_time = 0
 	_next_input_tick_time = 0
+	_next_service_time = 0
 	last_snapshot = null
 	stored_snapshots.clear()
 	client_ack_snapshots.clear()
@@ -344,6 +352,7 @@ func init_headless_server() -> bool:
 	_tick = 0
 	_next_tick_time = 0
 	_next_input_tick_time = 0
+	_next_service_time = 0
 	last_snapshot = null
 	stored_snapshots.clear()
 	client_ack_snapshots.clear()
@@ -427,6 +436,8 @@ func shutdown(reason: DisconnectReason = DisconnectReason.LOCAL_REQUEST) -> bool
 				print("Info request timed out-- Disconnecting")
 			DisconnectReason.FAILED_TO_VERIFY:
 				print("Kicked due to failing to send authentication")
+			DisconnectReason.POOR_CONNECTION:
+				print("Disconnected due to poor connection")
 	_is_connected = false
 	_is_server = false
 	_is_client = false
@@ -557,6 +568,9 @@ func handle_time(delta: float) -> void:
 		_last_tick_time = Time.get_ticks_usec()
 		if simulated_ticks > MAX_TICKS_PER_FRAME: break
 	after_tick_loop.emit()
+	if server_time > _next_service_time:
+		_next_service_time = server_time + msec_per_service
+		service_connections()
 
 ## Handles receiving of packets
 func handle_packet(packet: EchonetPacket) -> void:
@@ -667,7 +681,7 @@ func handle_packet(packet: EchonetPacket) -> void:
 					while !client_peers.has(packet.owner_id):
 						if Time.get_ticks_msec() >= spawn_attempt_timeout: 
 							push_error("Spawn attempt failed. Missing owner.")
-							shutdown(DisconnectReason.ERROR)
+							shutdown(DisconnectReason.POOR_CONNECTION)
 							return
 						await Engine.get_main_loop().process_frame
 				_late_join_spawn_packets[packet.spawn_id] = packet
@@ -1140,3 +1154,5 @@ func flags_to_received_ticks(last_tick: int, flags: int) -> PackedInt32Array:
 		if flags & i == 0: continue
 		output.append(n)
 	return output
+
+func service_connections() -> void: pass

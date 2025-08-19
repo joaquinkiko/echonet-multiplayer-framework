@@ -3,8 +3,16 @@ class_name EchoStateVar extends EchoVar
 
 @export var allowed_discrepency: float
 @export_range(0.1, 1.0, .05) var interpolate_strength: float = 0.5
+@export var client_prediction_allowence: float
+var _original_allowed_discrepency: float
+
+func _init() -> void:
+	_original_allowed_discrepency = allowed_discrepency
 
 func set_var(source: Node, value: Variant) -> void:
+	if client_prediction_allowence != 0:
+		var tick_latency: int = Echonet.transport.get_server_latency() / Echonet.transport.msec_per_tick
+		allowed_discrepency = _original_allowed_discrepency + client_prediction_allowence * tick_latency
 	if source.parent_echo_scene.owner.is_self:
 		var source_value: Variant = get_var(source)
 		match typeof(source_value):

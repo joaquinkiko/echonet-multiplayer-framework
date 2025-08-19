@@ -256,3 +256,16 @@ func gather_statistics() -> PackedInt64Array:
 func get_server_latency() -> int:
 	if enet_server_peer == null: return 0
 	return int(enet_server_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME) / 2)
+
+func service_connections() -> void:
+	if is_server:
+		for client in client_peers.values():
+			if client.has_meta("enet_peer"):
+				var enet_peer: ENetPacketPeer = client.get_meta("enet_peer", null)
+				if enet_peer == null: continue
+				if enet_peer.is_active():
+					client.rtt = int(enet_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+				else:
+					enet_peer.peer_disconnect(DisconnectReason.POOR_CONNECTION)
+				if client.rtt > MAX_PEER_RTT:
+					enet_peer.peer_disconnect(DisconnectReason.POOR_CONNECTION)

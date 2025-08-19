@@ -122,7 +122,10 @@ func _process(delta: float) -> void:
 			for client in Echonet.transport.client_peers.values():
 				if client.is_server: label_clients.text += "(S)"
 				elif client.is_admin: label_clients.text += "(A)"
-				label_clients.text += "%s (%s)\n"%[client.nickname, client.uid]
+				label_clients.text += "%s (%s)"%[client.nickname, client.uid]
+				if Echonet.transport.is_server:
+					label_clients.text += " rtt: %sms\n"%client.rtt
+				else: label_clients.text += "\n"
 		else: label_clients.text = ""
 		
 		_next_monitor_update_msec = Time.get_ticks_msec() + 1000
