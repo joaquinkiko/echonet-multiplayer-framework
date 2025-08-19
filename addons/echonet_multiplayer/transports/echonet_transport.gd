@@ -704,9 +704,9 @@ func handle_packet(packet: EchonetPacket) -> void:
 			packet = InputPacket.new_remote(packet)
 			if is_server:
 				decode_and_set_input(packet.input_data, packet.sender)
-				var last_snapshot := client_ack_snapshots.get(packet.sender.id, get_base_snapshot())
-				#if packet.last_ack_tick > last_snapshot.tick:
-				#	client_ack_snapshots[packet.sender.id] = EchoSnapshot.layer_snapshots(last_snapshot, stored_snapshots.get(packet.last_ack_tick, last_snapshot))
+				var _last_snapshot := client_ack_snapshots.get(packet.sender.id, get_base_snapshot())
+				#if packet.last_ack_tick > _last_snapshot.tick:
+				#	client_ack_snapshots[packet.sender.id] = EchoSnapshot.layer_snapshots(_last_snapshot, stored_snapshots.get(packet.last_ack_tick, _last_snapshot))
 		EchonetPacket.PacketType.STATE:
 			packet = StatePacket.new_remote(packet)
 			if is_client:
@@ -1111,6 +1111,7 @@ func get_base_snapshot() -> EchoSnapshot:
 	return base_snapshot
 
 func apply_snapshot(snapshot: EchoSnapshot) -> void:
+	last_snapshot = snapshot
 	var scenes: Dictionary[int, PackedInt32Array]
 	for n in snapshot.world_state.keys():
 		EchoScene.scenes[EchoNode.get_scene_id_from_combined_id(n)]\
