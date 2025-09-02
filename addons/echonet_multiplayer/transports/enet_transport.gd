@@ -34,6 +34,14 @@ var port: int:
 		port = value
 var _port: int = 42069
 
+## Compression type to use when establishing new connection
+var compression_mode: ENetConnection.CompressionMode:
+	get: return _compression_mode
+	set(value):
+		if is_connected: push_warning("Cannot set 'compression_mode' whilst already connected")
+		else: _compression_mode = value
+var _compression_mode := ENetConnection.COMPRESS_RANGE_CODER
+
 func init_server() -> bool:
 	if !super.init_server(): return false
 	connection = ENetConnection.new()
@@ -43,6 +51,8 @@ func init_server() -> bool:
 		connection = null
 		shutdown(DisconnectReason.ERROR)
 		return false
+	connection.compress(compression_mode)
+	connection.channel_limit(ServerChannels.MAX)
 	_connection_successful = true
 	return true
 
@@ -55,6 +65,8 @@ func init_client() -> bool:
 		connection = null
 		shutdown(DisconnectReason.ERROR)
 		return false
+	connection.compress(compression_mode)
+	connection.channel_limit(ServerChannels.MAX)
 	enet_server_peer = connection.connect_to_host(ip, port)
 	return true
 
@@ -67,6 +79,8 @@ func init_server_info_request() -> bool:
 		connection = null
 		shutdown(DisconnectReason.ERROR)
 		return false
+	connection.compress(compression_mode)
+	connection.channel_limit(ServerChannels.MAX)
 	enet_server_peer = connection.connect_to_host(ip, port)
 	return true
 
@@ -79,6 +93,8 @@ func init_headless_server() -> bool:
 		connection = null
 		shutdown(DisconnectReason.ERROR)
 		return false
+	connection.compress(compression_mode)
+	connection.channel_limit(ServerChannels.MAX)
 	_connection_successful = true
 	return true
 
