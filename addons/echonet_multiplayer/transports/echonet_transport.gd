@@ -737,7 +737,8 @@ func handle_packet(packet: EchonetPacket) -> void:
 			if is_client:
 				if packet.tick >= tick - max_stored_snapshots:
 					stored_snapshots[packet.tick] = EchoSnapshot.new_from_state_packet(packet)
-					if packet.tick <= tick && last_snapshot != null && last_snapshot.tick < packet.tick:
+				if packet.tick <= tick:
+					if last_snapshot == null || last_snapshot.tick < packet.tick:
 						last_snapshot = stored_snapshots[packet.tick]
 						apply_snapshot(last_snapshot)
 				var received_ticks := flags_to_received_ticks(last_received_snapshot_tick, old_received_snapshots_flags)
