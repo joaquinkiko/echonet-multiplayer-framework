@@ -730,8 +730,8 @@ func handle_packet(packet: EchonetPacket) -> void:
 						TimeSyncPacket.new(server_time, tick_rate, tick), 
 						ServerChannels.BACKEND,
 						false)
-				#if packet.last_ack_tick > _last_snapshot.tick:
-				#	client_ack_snapshots[packet.sender.id] = EchoSnapshot.layer_snapshots(_last_snapshot, stored_snapshots.get(packet.last_ack_tick, _last_snapshot))
+				if packet.last_ack_tick > client_ack_snapshots.get(packet.sender.id, get_base_snapshot()).tick && stored_snapshots.has(packet.last_ack_tick):
+					client_ack_snapshots[packet.sender.id] = EchoSnapshot.layer_snapshots(client_ack_snapshots.get(packet.sender.id, get_base_snapshot()), stored_snapshots[packet.last_ack_tick])
 		EchonetPacket.PacketType.STATE:
 			packet = StatePacket.new_remote(packet)
 			if is_client:
@@ -1127,6 +1127,7 @@ func collect_state() -> void:
 	for n in client_peers:
 		if client_peers[n].is_self: continue
 		var delta_snapshot := EchoSnapshot.delta_snapshot(client_ack_snapshots.get(n, get_base_snapshot()), new_snapshot)
+		print(delta_snapshot.world_state)
 		server_message(client_peers[n], StatePacket.new(tick, delta_snapshot.get_state_data()))
 
 func get_base_snapshot() -> EchoSnapshot:
