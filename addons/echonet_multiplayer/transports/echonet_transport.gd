@@ -1127,6 +1127,7 @@ func collect_state() -> void:
 	for n in client_peers:
 		if client_peers[n].is_self: continue
 		var delta_snapshot := EchoSnapshot.delta_snapshot(client_ack_snapshots.get(n, get_base_snapshot()), new_snapshot)
+		if delta_snapshot.world_state.is_empty(): return
 		server_message(client_peers[n], StatePacket.new(tick, delta_snapshot.get_state_data()))
 
 func get_base_snapshot() -> EchoSnapshot:
