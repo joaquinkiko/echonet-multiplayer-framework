@@ -256,7 +256,9 @@ var last_received_snapshot_tick: int
 ## 8-bit Flag for each [EchoSnapshot] received prior to [member last_received_snapshot_tick]
 var old_received_snapshots_flags: int
 ## Limit on stored snapshots
-var max_stored_snapshots: int = 120
+var max_stored_snapshots: int:
+	get: return (MAX_TIME_DESYNC / msec_per_tick) * 1.5
+	set(value): push_warning("Cannot directly set 'max_stored_snapshots'")
 ## Stored delta [EchoSnapshot] of past ticks sent to clients
 var stored_delta_snapshots: Dictionary[int, Dictionary]
 ## Acknowledged ticks per client
