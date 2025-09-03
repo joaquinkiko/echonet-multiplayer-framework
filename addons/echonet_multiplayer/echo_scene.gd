@@ -10,7 +10,12 @@ var echo_node_id_counter: int = 1
 
 var node: Node
 var id: int
-var owner: EchonetPeer
+var owner: EchonetPeer:
+	get: 
+		if _owner == null: return Echonet.transport.client_peers[1]
+		return _owner
+	set(value): _owner = value
+var _owner: EchonetPeer
 var echo_nodes: Dictionary[int, EchoNode]
 
 static func _static_init() -> void:
