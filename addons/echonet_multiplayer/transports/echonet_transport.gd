@@ -257,6 +257,10 @@ var last_received_snapshot_tick: int
 var old_received_snapshots_flags: int
 ## Limit on stored snapshots
 var max_stored_snapshots: int = 120
+## Stored delta [EchoSnapshot] of past ticks sent to clients
+var stored_delta_snapshots: Dictionary[int, Dictionary]
+## Acknowledged ticks per client
+var client_ack_ticks: Dictionary[int, Dictionary]
 
 var last_frame_delta: float
 
@@ -277,6 +281,8 @@ func init_server() -> bool:
 	last_snapshot = null
 	stored_snapshots.clear()
 	client_ack_snapshots.clear()
+	stored_delta_snapshots.clear()
+	client_ack_ticks.clear()
 	last_received_snapshot_tick = 0
 	old_received_snapshots_flags = 0
 	has_synced_time = true
@@ -309,6 +315,8 @@ func init_client() -> bool:
 	last_snapshot = null
 	stored_snapshots.clear()
 	client_ack_snapshots.clear()
+	stored_delta_snapshots.clear()
+	client_ack_ticks.clear()
 	last_received_snapshot_tick = 0
 	old_received_snapshots_flags = 0
 	has_synced_time = false
@@ -356,6 +364,8 @@ func init_headless_server() -> bool:
 	last_snapshot = null
 	stored_snapshots.clear()
 	client_ack_snapshots.clear()
+	stored_delta_snapshots.clear()
+	client_ack_ticks.clear()
 	last_received_snapshot_tick = 0
 	old_received_snapshots_flags = 0
 	has_synced_time = true
@@ -454,6 +464,8 @@ func shutdown(reason: DisconnectReason = DisconnectReason.LOCAL_REQUEST) -> bool
 	last_snapshot = null
 	stored_snapshots.clear()
 	client_ack_snapshots.clear()
+	stored_delta_snapshots.clear()
+	client_ack_ticks.clear()
 	last_received_snapshot_tick = 0
 	old_received_snapshots_flags = 0
 	_tick = 0
@@ -504,6 +516,8 @@ func _get_available_id() -> int:
 func peer_connected(peer: EchonetPeer) -> void:
 	_client_peers[peer.id] = peer
 	if is_server:
+		if !stored_delta_snapshots.has(peer.id): stored_delta_snapshots[peer.id] = {}
+		if !client_ack_ticks.has(peer.id): client_ack_ticks[peer.id] = {}
 		var _nicknames: Dictionary[int, String]
 		var _uids: Dictionary[int, int]
 		var _admins: PackedInt32Array
@@ -529,6 +543,8 @@ func peer_disconnected(peer_id: int) -> void:
 		for object_id in client_peers.get(peer_id, EchonetPeer.placeholder()).owned_object_ids.duplicate():
 			despawn(object_id)
 		client_ack_snapshots.erase(peer_id)
+		stored_delta_snapshots.erase(peer_id)
+		client_ack_ticks.erase(peer_id)
 	print("Lost connection: ", client_peers.get(peer_id, EchonetPeer.placeholder()))
 	_client_peers.erase(peer_id)
 
@@ -565,6 +581,9 @@ func handle_time(delta: float) -> void:
 		if !is_server:
 			if stored_snapshots.has(tick): apply_snapshot(stored_snapshots[tick])
 		stored_snapshots.erase(tick - max_stored_snapshots)
+		for n in stored_delta_snapshots.keys():
+			stored_delta_snapshots[n].erase(tick - max_stored_snapshots)
+			client_ack_ticks[n].erase(tick - max_stored_snapshots)
 		_last_tick_time = Time.get_ticks_usec()
 		if simulated_ticks > MAX_TICKS_PER_FRAME: break
 	after_tick_loop.emit()
@@ -730,8 +749,19 @@ func handle_packet(packet: EchonetPacket) -> void:
 						TimeSyncPacket.new(server_time, tick_rate, tick), 
 						ServerChannels.BACKEND,
 						false)
-				if packet.last_ack_tick > client_ack_snapshots.get(packet.sender.id, get_base_snapshot()).tick && stored_snapshots.has(packet.last_ack_tick):
-					client_ack_snapshots[packet.sender.id] = EchoSnapshot.layer_snapshots(client_ack_snapshots.get(packet.sender.id, get_base_snapshot()), stored_snapshots[packet.last_ack_tick])
+				var ack_change := false
+				for n in flags_to_received_ticks(packet.last_ack_tick, packet.old_ack_ticks_flags):
+					if client_ack_ticks[packet.sender.id].has(n):
+						client_ack_ticks[packet.sender.id][n] = true
+						ack_change = true
+				if ack_change:
+					var delta_ack_snapshot := EchoSnapshot.new()
+					for n in client_ack_ticks[packet.sender.id]:
+						if client_ack_ticks[packet.sender.id][n] == false: continue
+						if !stored_delta_snapshots[packet.sender.id].has(n): continue
+						delta_ack_snapshot = EchoSnapshot.layer_snapshots(delta_ack_snapshot, stored_delta_snapshots[packet.sender.id][n])
+						delta_ack_snapshot.tick = stored_delta_snapshots[packet.sender.id][n].tick
+					client_ack_snapshots[packet.sender.id] = delta_ack_snapshot
 		EchonetPacket.PacketType.STATE:
 			packet = StatePacket.new_remote(packet)
 			if is_client:
@@ -1128,6 +1158,8 @@ func collect_state() -> void:
 		if client_peers[n].is_self: continue
 		var delta_snapshot := EchoSnapshot.delta_snapshot(client_ack_snapshots.get(n, get_base_snapshot()), new_snapshot)
 		if delta_snapshot.world_state.is_empty(): return
+		stored_delta_snapshots[n][tick] = delta_snapshot
+		client_ack_ticks[n][tick] = false
 		server_message(client_peers[n], StatePacket.new(tick, delta_snapshot.get_state_data()))
 
 func get_base_snapshot() -> EchoSnapshot:
