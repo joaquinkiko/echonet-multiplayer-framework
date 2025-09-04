@@ -26,6 +26,8 @@ var state_values: Dictionary[EchoVar, Variant]
 ## Goal state values to interpolate to
 var priority_accumulator: int
 
+var state_sync_paused := false
+
 func _enter_tree() -> void:
 	parent_echo_scene = _find_parent_echo_scene()
 	assert(parent_echo_scene != null, "EchoNode entered tree with no parent EchoScene!")

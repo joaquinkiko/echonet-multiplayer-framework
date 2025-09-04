@@ -1162,6 +1162,7 @@ func collect_state() -> void:
 	for n in EchoScene.scenes.keys():
 		if EchoScene.scenes[n].node != null && !EchoScene.scenes[n].node.can_process(): continue
 		for i in EchoScene.scenes[n].echo_nodes.keys():
+			if EchoScene.scenes[n].echo_nodes[i].state_sync_paused: continue
 			new_snapshot.world_state[EchoScene.scenes[n].echo_nodes[i].get_combined_id()] = EchoScene.scenes[n].echo_nodes[i].get_encoded_state()
 			#if priority_snapshot.world_state.size() + EchoScene.scenes[n].echo_nodes[i].get_encoded_state().size() >= MAX_SNAPSHOT_SIZE: 
 			#	print("!")
