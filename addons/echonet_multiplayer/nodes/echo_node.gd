@@ -6,6 +6,8 @@ var id: int
 ## Parent [EchoScene]
 var parent_echo_scene: EchoScene
 
+@export_range(0.1,1,0.05) var interpolation_strength = 0.75
+
 ## List of valid [EchoFunc] sorted by method call name
 @export var echo_funcs: Dictionary[StringName, EchoFunc]
 
@@ -14,6 +16,9 @@ var parent_echo_scene: EchoScene
 
 ## [EchoVar] to be synced by clients to the server
 @export var input_vars: Array[EchoVar]
+
+## Goal state values to interpolate to
+var state_values: Dictionary[EchoVar, Variant]
 
 func _enter_tree() -> void:
 	parent_echo_scene = _find_parent_echo_scene()
@@ -24,6 +29,11 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	if parent_echo_scene != null && parent_echo_scene.echo_nodes.has(id):
 		parent_echo_scene.echo_nodes.erase(id)
+
+func _physics_process(_sdelta: float) -> void:
+	if interpolation_strength >= 1: return
+	for state in state_values.keys():
+		state.set_var(self, lerp(state.get_var(self), state_values[state], interpolation_strength))
 
 ## Returns parent spawned object
 func _find_parent_echo_scene() -> EchoScene:
@@ -112,7 +122,10 @@ func get_encoded_state() -> PackedByteArray:
 func decode_and_set_state(data: PackedByteArray) -> void:
 	var position := 1
 	for state in state_vars:
-		state.set_var_encoded(self, data.slice(position))
+		if interpolation_strength < 1:
+			state_values[state] = state.decode_var(state.encoding_type, data.slice(position))
+		else:
+			state.set_var_encoded(self, data.slice(position))
 		position += state.get_var_size(state.encoding_type, data.slice(position))
 
 func decode_state_data_length(data: PackedByteArray) -> int:

@@ -2,7 +2,6 @@
 class_name EchoStateVar extends EchoVar
 
 @export var allowed_discrepency: float
-@export_range(0.1, 1.0, .05) var interpolate_strength: float = 0.5
 var _adjusted_allowed_discrepency: float
 
 func set_var(source: Node, value: Variant) -> void:
@@ -42,6 +41,4 @@ func set_var(source: Node, value: Variant) -> void:
 					return
 				elif abs(source_value.z - value.z) <= _adjusted_allowed_discrepency:
 					return
-	if interpolate_strength != 1:
-		value = lerp(get_var(source), value, interpolate_strength)
 	super.set_var(source, value)
