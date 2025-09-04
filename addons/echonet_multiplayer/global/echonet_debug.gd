@@ -82,6 +82,7 @@ func _ready() -> void:
 			Echonet.transport.tick_rate = int(arg.trim_prefix("--tickrate="))
 	if args.has("--server"):
 		if DisplayServer.get_name() == "headless": Echonet.transport.init_headless_server()
+		elif args.has("--visual-headless"): Echonet.transport.init_headless_server()
 		else: Echonet.transport.init_server()
 	elif args.has("--client"): Echonet.transport.init_client()
 
