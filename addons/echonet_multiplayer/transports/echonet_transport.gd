@@ -718,7 +718,7 @@ func handle_packet(packet: EchonetPacket) -> void:
 				EchoScene.add_scene(new_echo_scene)
 				new_scene.set_meta("echoscene", new_echo_scene)
 				if packet.owner_id != 0 && client_peers.has(packet.owner_id):
-					client_peers[packet.owner_id].owned_object_ids.append(packet.owner_id)
+					client_peers[packet.owner_id].owned_object_ids.append(packet.spawn_id)
 				if new_scene.has_method("_on_spawn"): new_scene.call("_on_spawn", packet.args)
 				Echonet.add_child(new_scene)
 		EchonetPacket.PacketType.DESPAWN:
@@ -1146,7 +1146,7 @@ func collect_input() -> void:
 ## Decodes received Input data
 func decode_and_set_input(data: PackedByteArray, owner: EchonetPeer) -> void:
 	if !is_server: return
-	if !client_peers.has(local_id): return
+	if !client_peers.has(owner.id): return
 	var position := 0
 	while position < data.size():
 		if EchoScene.scenes.has(data.decode_u16(position)):
