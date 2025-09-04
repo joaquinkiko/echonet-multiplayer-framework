@@ -25,11 +25,6 @@ func _exit_tree() -> void:
 	if parent_echo_scene != null && parent_echo_scene.echo_nodes.has(id):
 		parent_echo_scene.echo_nodes.erase(id)
 
-func _physics_process(delta: float) -> void:
-	for state_var in state_vars:
-		if state_var is EchoStateVar:
-			state_var.interpolate(self)
-
 ## Returns parent spawned object
 func _find_parent_echo_scene() -> EchoScene:
 	var possible_parent: Node = self

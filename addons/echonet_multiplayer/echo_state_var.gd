@@ -43,16 +43,5 @@ func set_var(source: Node, value: Variant) -> void:
 				elif abs(source_value.z - value.z) <= _adjusted_allowed_discrepency:
 					return
 	if interpolate_strength != 1:
-		for n in source.state_vars.size():
-			if source.state_vars[n] == self:
-				source.set_meta("goal%s"%n, value)
-		return
+		value = lerp(get_var(source), value, interpolate_strength)
 	super.set_var(source, value)
-
-func interpolate(source: Node) -> void:
-	var goal_value: Variant = null
-	for n in source.state_vars.size():
-			if source.state_vars[n] == self && source.has_meta("goal%s"%n):
-				goal_value = source.get_meta("goal%s"%n)
-	if goal_value == null: return
-	source.get_node(NodePath(path)).set_indexed(NodePath(NodePath(path).get_concatenated_subnames()).get_as_property_path(), lerp(get_var(source), goal_value, interpolate_strength))
