@@ -863,15 +863,7 @@ func set_main_scene(scene_uid: int, args := Array([])) -> bool:
 		for n in 2: await Engine.get_main_loop().process_frame
 		if Echonet.get_tree().current_scene.has_method("_on_scene_swap"): 
 			Echonet.get_tree().current_scene.call("_on_scene_swap", args)
-		var largest_rtt := 0
-		for n in client_peers: 
-			if client_peers[n].rtt > largest_rtt: largest_rtt = client_peers[n].rtt
-		var timeout: int = Time.get_ticks_msec() + EVENT_BASE_TIMEOUT + largest_rtt * EVENT_RTT_MULTIPLIER + 1000
-		while is_awaiting_scene_swap:
-			if Time.get_ticks_msec() > timeout || !is_connected: break
-			await Engine.get_main_loop().process_frame
-		is_awaiting_scene_swap = false
-		return is_connected
+		return true
 	else:
 		print("Failed to swap main scene")
 		shutdown(DisconnectReason.ERROR)
