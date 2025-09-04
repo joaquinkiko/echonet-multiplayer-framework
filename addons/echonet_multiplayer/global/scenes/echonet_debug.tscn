@@ -99,6 +99,29 @@ layout_mode = 2
 custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
 
+[node name="PacketData" type="HBoxContainer" parent="Statistics"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Statistics/PacketData"]
+layout_mode = 2
+text = "Avg. Packet"
+
+[node name="Spacer" type="Control" parent="Statistics/PacketData"]
+custom_minimum_size = Vector2(39, 0)
+layout_mode = 2
+
+[node name="In" type="Label" parent="Statistics/PacketData"]
+custom_minimum_size = Vector2(92, 0)
+layout_mode = 2
+
+[node name="VSeparator" type="VSeparator" parent="Statistics/PacketData"]
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+
+[node name="Out" type="Label" parent="Statistics/PacketData"]
+custom_minimum_size = Vector2(64, 0)
+layout_mode = 2
+
 [node name="RTT" type="HBoxContainer" parent="Statistics"]
 layout_mode = 2
 

@@ -16,6 +16,8 @@ const SHOULD_TILE_IN_EDITOR := true
 @onready var label_clients: Label = $Statistics/Clients
 @onready var label_time: Label = $Statistics/Time/Time
 @onready var label_tick: Label = $Statistics/Time/Tick
+@onready var avg_packet_in: Label = $Statistics/PacketData/In
+@onready var avg_packet_out: Label = $Statistics/PacketData/Out
 
 ## Array of seven server statistics sorted as
 ## 0:data in	1:data out	2:packets in	3:packets out	4:rtt	5:throttle	6:packet loss
@@ -96,6 +98,8 @@ func _process(delta: float) -> void:
 		label_rtt.text = "%smsec"%data[4]
 		label_throttle.text = "%s%%"%data[5]
 		label_loss.text = "%s%%"%data[6]
+		avg_packet_in.text = "%s"%String.humanize_size(data[0] / max(1, data[2]))
+		avg_packet_out.text = "%s"%String.humanize_size(data[1] / max(1, data[3]))
 		
 		if Echonet.transport.is_connected:
 			if Echonet.transport.connection_successful:
