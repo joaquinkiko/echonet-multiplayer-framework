@@ -757,7 +757,7 @@ func handle_packet(packet: EchonetPacket) -> void:
 						client_ack_ticks[packet.sender.id][n] = true
 						ack_change = true
 				if ack_change:
-					var delta_ack_snapshot := EchoSnapshot.new()
+					var delta_ack_snapshot := client_ack_snapshots.get(packet.sender.id, EchoSnapshot.new())
 					for n in client_ack_ticks[packet.sender.id]:
 						if client_ack_ticks[packet.sender.id][n] == false: continue
 						if !stored_delta_snapshots[packet.sender.id].has(n): continue
