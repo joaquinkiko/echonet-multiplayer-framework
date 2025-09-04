@@ -823,8 +823,9 @@ func handle_packet(packet: EchonetPacket) -> void:
 				for n in 2: await Engine.get_main_loop().process_frame
 				if Echonet.get_tree().current_scene.has_method("_on_scene_swap"): 
 					Echonet.get_tree().current_scene.call("_on_scene_swap", packet.args)
-					client_message(EventAckPacket.new(packet.ack_code), ServerChannels.MAIN_RELIABLE, true)
-			else: shutdown(DisconnectReason.ERROR)
+				client_message(EventAckPacket.new(packet.ack_code), ServerChannels.MAIN_RELIABLE, true)
+			else: 
+				shutdown(DisconnectReason.ERROR)
 		EchonetPacket.PacketType.EVENT_ACK:
 			packet = EventAckPacket.new_remote(packet)
 			if pending_peer.has(packet.sender):
@@ -862,8 +863,17 @@ func set_main_scene(scene_uid: int, args := Array([])) -> bool:
 		for n in 2: await Engine.get_main_loop().process_frame
 		if Echonet.get_tree().current_scene.has_method("_on_scene_swap"): 
 			Echonet.get_tree().current_scene.call("_on_scene_swap", args)
-		return true
-	else: 
+		var largest_rtt := 0
+		for n in client_peers: 
+			if client_peers[n].rtt > largest_rtt: largest_rtt = client_peers[n].rtt
+		var timeout: int = Time.get_ticks_msec() + EVENT_BASE_TIMEOUT + largest_rtt * EVENT_RTT_MULTIPLIER + 1000
+		while is_awaiting_scene_swap:
+			if Time.get_ticks_msec() > timeout || !is_connected: break
+			await Engine.get_main_loop().process_frame
+		is_awaiting_scene_swap = false
+		return is_connected
+	else:
+		print("Failed to swap main scene")
 		shutdown(DisconnectReason.ERROR)
 		is_awaiting_scene_swap = false
 		return false
@@ -895,10 +905,9 @@ func _await_new_event_ack(event_id: int, success: Callable, failure: Callable, f
 func _peer_await_event_ack(peer: EchonetPeer, event_id: int, success: Callable, failure: Callable, final_success: Callable) -> void:
 	if !pending_peer.has(peer): pending_peer[peer] = PackedInt32Array([])
 	if !pending_peer[peer].has(event_id): pending_peer[peer].append(event_id)
-	var timeout: int = Time.get_ticks_msec() + EVENT_BASE_TIMEOUT + peer.rtt * EVENT_RTT_MULTIPLIER
-	await Engine.get_main_loop().process_frame
+	var timeout: int = Time.get_ticks_msec() + 9999999999 + EVENT_BASE_TIMEOUT + peer.rtt * EVENT_RTT_MULTIPLIER
 	var succeeded := true
-	while !pending_peer.has(peer) || !pending_peer[peer].has(event_id):
+	while pending_peer.has(peer) && pending_peer[peer].has(event_id):
 		if Time.get_ticks_msec() > timeout || !is_connected:
 			succeeded = false
 			break
@@ -912,7 +921,7 @@ func _peer_await_event_ack(peer: EchonetPeer, event_id: int, success: Callable, 
 		else:
 			failure.call(peer)
 	
-	if pending_peer.has(peer): 
+	if pending_peer.has(peer) && pending_peer[peer].has(event_id): 
 		pending_peer[peer].remove_at(pending_peer[peer].find(event_id))
 		if pending_peer[peer].is_empty(): pending_peer.erase(peer)
 	
