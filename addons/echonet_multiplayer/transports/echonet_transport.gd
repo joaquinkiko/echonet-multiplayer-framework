@@ -15,7 +15,7 @@ const MAX_PEER_RTT := 1500
 
 const MAX_SNAPSHOT_SIZE := 1400
 
-const EVENT_BASE_TIMEOUT := 1000
+const EVENT_BASE_TIMEOUT := 5000
 
 const EVENT_RTT_MULTIPLIER := 10
 
@@ -863,6 +863,7 @@ func set_main_scene(scene_uid: int, args := Array([])) -> bool:
 		for n in 2: await Engine.get_main_loop().process_frame
 		if Echonet.get_tree().current_scene.has_method("_on_scene_swap"): 
 			Echonet.get_tree().current_scene.call("_on_scene_swap", args)
+		if client_peers.has(local_id): on_peer_scene_change.emit(client_peers[local_id])
 		return true
 	else:
 		print("Failed to swap main scene")
@@ -897,7 +898,7 @@ func _await_new_event_ack(event_id: int, success: Callable, failure: Callable, f
 func _peer_await_event_ack(peer: EchonetPeer, event_id: int, success: Callable, failure: Callable, final_success: Callable) -> void:
 	if !pending_peer.has(peer): pending_peer[peer] = PackedInt32Array([])
 	if !pending_peer[peer].has(event_id): pending_peer[peer].append(event_id)
-	var timeout: int = Time.get_ticks_msec() + 9999999999 + EVENT_BASE_TIMEOUT + peer.rtt * EVENT_RTT_MULTIPLIER
+	var timeout: int = Time.get_ticks_msec() + EVENT_BASE_TIMEOUT + peer.rtt * EVENT_RTT_MULTIPLIER
 	var succeeded := true
 	while pending_peer.has(peer) && pending_peer[peer].has(event_id):
 		if Time.get_ticks_msec() > timeout || !is_connected:
@@ -961,6 +962,12 @@ func despawn(object_id: int) -> void:
 			EchoScene.remove_scene(object_id)
 		_late_join_spawn_packets.erase(object_id)
 		server_broadcast(DespawnPacket.new(object_id), ServerChannels.SPAWN, true)
+
+func despawn_all(exceptions := PackedInt32Array([])) -> void:
+	for n in EchoScene.scenes.keys():
+		if n == 0: continue
+		if exceptions.has(n): continue
+		despawn(n)
 
 ## Returns latency in milliseconds from server
 func get_server_latency() -> int: return 0
