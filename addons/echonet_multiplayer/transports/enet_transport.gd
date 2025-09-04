@@ -285,3 +285,8 @@ func service_connections() -> void:
 					enet_peer.peer_disconnect(DisconnectReason.POOR_CONNECTION)
 				if client.rtt > MAX_PEER_RTT:
 					enet_peer.peer_disconnect(DisconnectReason.POOR_CONNECTION)
+
+func _set_main_scene_failure(peer: EchonetPeer) -> void:
+	super._set_main_scene_failure(peer)
+	if peer != null && peer.has_meta("enet_peer"):
+		peer.get_meta("enet_peer").peer_disconnect(DisconnectReason.POOR_CONNECTION)

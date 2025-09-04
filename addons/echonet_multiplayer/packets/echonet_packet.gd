@@ -17,6 +17,8 @@ enum PacketType {
 	RPC = 11,
 	INPUT = 12,
 	STATE = 13,
+	SCENE_SWAP = 14,
+	EVENT_ACK = 15,
 }
 
 ## [PacketType] to sign first byte of packet with

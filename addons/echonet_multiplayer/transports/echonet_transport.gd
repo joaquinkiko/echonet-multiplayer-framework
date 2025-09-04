@@ -15,6 +15,10 @@ const MAX_PEER_RTT := 1500
 
 const MAX_SNAPSHOT_SIZE := 1400
 
+const EVENT_BASE_TIMEOUT := 1000
+
+const EVENT_RTT_MULTIPLIER := 10
+
 ## Channels for sending data
 enum ServerChannels {
 	MAIN = 0,
@@ -89,6 +93,11 @@ signal on_time_resynced(delta_msec: int)
 
 ## Called every input tick with delta machine time since last tick (not delta server time)
 signal on_input_tick(delta: float)
+
+signal before_scene_change()
+signal on_scene_change_success()
+signal on_peer_scene_change(peer: EchonetPeer)
+signal on_peer_scene_change_failure(peer: EchonetPeer)
 
 ## List of connected client-peers sorted by id (including self)
 var client_peers: Dictionary[int, EchonetPeer]:
@@ -270,6 +279,12 @@ var last_frame_delta: float
 
 var _next_service_time: int
 var msec_per_service: int = 1000
+
+var pending_event_ids: PackedInt32Array
+
+var pending_peer: Dictionary[EchonetPeer, PackedInt32Array]
+
+var is_awaiting_scene_swap: bool
 
 ## Initialize connection as Client-Server
 func init_server() -> bool:
@@ -793,8 +808,124 @@ func handle_packet(packet: EchonetPacket) -> void:
 				elif last_received_snapshot_tick - packet.tick <= 8:
 					var flag := int(last_received_snapshot_tick - packet.tick)
 					old_received_snapshots_flags = old_received_snapshots_flags | flag
+		EchonetPacket.PacketType.SCENE_SWAP:
+			packet = SceneSwapPacket.new_remote(packet)
+			if !ResourceUID.has_id(packet.scene_uid):
+				push_error("Unknown resource uid to set scene to: %s"%packet.scene_uid)
+				shutdown(DisconnectReason.ERROR)
+				return
+			var scene: PackedScene = ResourceLoader.load(ResourceUID.get_id_path(packet.scene_uid))
+			if scene == null: 
+				push_error("Setting main scene error loading resource uid %s"%packet.scene_uid)
+				shutdown(DisconnectReason.ERROR)
+				return
+			if Echonet.get_tree().change_scene_to_packed(scene) == OK:
+				for n in 2: await Engine.get_main_loop().process_frame
+				if Echonet.get_tree().current_scene.has_method("_on_scene_swap"): 
+					Echonet.get_tree().current_scene.call("_on_scene_swap", packet.args)
+					client_message(EventAckPacket.new(packet.ack_code), ServerChannels.MAIN_RELIABLE, true)
+			else: shutdown(DisconnectReason.ERROR)
+		EchonetPacket.PacketType.EVENT_ACK:
+			packet = EventAckPacket.new_remote(packet)
+			if pending_peer.has(packet.sender):
+				if pending_peer[packet.sender].has(packet.ack_code):
+					pending_peer[packet.sender].remove_at(pending_peer[packet.sender].find(packet.ack_code))
+					var still_pending := false
+					for peer in pending_peer:
+						if pending_peer[peer].has(packet.ack_code):
+							still_pending = true
+							break
+					if !still_pending: if pending_event_ids.has(packet.ack_code): pending_event_ids.remove_at(pending_event_ids.find(packet.ack_code))
 		_:
 			push_error("Unrecognized packet type: ", packet.type)
+
+func set_main_scene(scene_uid: int, args := Array([])) -> bool:
+	if !is_server:
+		push_error("Only server can set the main scene")
+		return false
+	if is_awaiting_scene_swap:
+		push_warning("Cannot swap scenes again mid scene swap")
+		return false
+	if !ResourceUID.has_id(scene_uid):
+		push_error("Unknown resource uid to set scene to: %s"%scene_uid)
+		return false
+	var scene: PackedScene = ResourceLoader.load(ResourceUID.get_id_path(scene_uid))
+	if scene == null: 
+		push_error("Setting main scene error loading resource uid %s"%scene_uid)
+		return false
+	var event_id := _get_new_event_id()
+	is_awaiting_scene_swap = true
+	before_scene_change.emit()
+	server_broadcast(SceneSwapPacket.new(scene_uid, event_id, args), ServerChannels.MAIN_RELIABLE, true)
+	_await_new_event_ack(event_id, _set_main_scene_success, _set_main_scene_failure, _set_main_scene_final_success)
+	if Echonet.get_tree().change_scene_to_packed(scene) == OK:
+		for n in 2: await Engine.get_main_loop().process_frame
+		if Echonet.get_tree().current_scene.has_method("_on_scene_swap"): 
+			Echonet.get_tree().current_scene.call("_on_scene_swap", args)
+		return true
+	else: 
+		shutdown(DisconnectReason.ERROR)
+		is_awaiting_scene_swap = false
+		return false
+
+func _set_main_scene_success(peer: EchonetPeer) -> void:
+	on_peer_scene_change.emit(peer)
+
+func _set_main_scene_failure(peer: EchonetPeer) -> void:
+	on_peer_scene_change_failure.emit(peer)
+
+func _set_main_scene_final_success() -> void:
+	is_awaiting_scene_swap = false
+	on_scene_change_success.emit()
+
+
+func _get_new_event_id() -> int:
+	var output := randi_range(1,99999999)
+	while pending_event_ids.has(output): 
+		output += 1
+		if output > 99999999: output = 1
+	return output
+
+func _await_new_event_ack(event_id: int, success: Callable, failure: Callable, final_success: Callable) -> void:
+	if !pending_event_ids.has(event_id): pending_event_ids.append(event_id)
+	for peer in client_peers.values():
+		if peer.is_self: continue
+		_peer_await_event_ack(peer, event_id, success, failure, final_success)
+
+func _peer_await_event_ack(peer: EchonetPeer, event_id: int, success: Callable, failure: Callable, final_success: Callable) -> void:
+	if !pending_peer.has(peer): pending_peer[peer] = PackedInt32Array([])
+	if !pending_peer[peer].has(event_id): pending_peer[peer].append(event_id)
+	var timeout: int = Time.get_ticks_msec() + EVENT_BASE_TIMEOUT + peer.rtt * EVENT_RTT_MULTIPLIER
+	await Engine.get_main_loop().process_frame
+	var succeeded := true
+	while !pending_peer.has(peer) || !pending_peer[peer].has(event_id):
+		if Time.get_ticks_msec() > timeout || !is_connected:
+			succeeded = false
+			break
+		await Engine.get_main_loop().process_frame
+	if !client_peers.has(peer.id):
+		succeeded = false
+	
+	if is_connected:
+		if succeeded:
+			success.call(peer)
+		else:
+			failure.call(peer)
+	
+	if pending_peer.has(peer): 
+		pending_peer[peer].remove_at(pending_peer[peer].find(event_id))
+		if pending_peer[peer].is_empty(): pending_peer.erase(peer)
+	
+	var event_still_pending := false
+	if is_connected:
+		for _peer in pending_peer:
+			if pending_peer[_peer].has(event_id):
+				event_still_pending = true
+				break
+	if !event_still_pending:
+		if pending_event_ids.has(event_id): pending_event_ids.remove_at(pending_event_ids.find(event_id))
+		if is_connected: 
+			final_success.call()
 
 ## Spawns an object and returns it's ID
 func spawn(scene_uid: int, args := Array([]), owner: EchonetPeer = null) -> int:
