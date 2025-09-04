@@ -9,7 +9,7 @@ const MAX_SERVER_TIME := 4294967295 # u32 max value
 
 const MAX_PEERS := 255 # Max u8
 
-const MAX_TIME_DESYNC := 10000
+const MAX_TIME_DESYNC := 1000
 
 const MAX_PEER_RTT := 1500
 
