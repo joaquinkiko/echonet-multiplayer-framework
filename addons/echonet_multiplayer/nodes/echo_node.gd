@@ -7,7 +7,7 @@ var id: int
 var parent_echo_scene: EchoScene
 
 ## Priority level for state syncronization
-@export_range(1,100,1) var priority: int = 1
+@export_range(1,9999,1) var priority: int = 1
 
 @export_range(0.1,1,0.05) var interpolation_strength = 0.75
 
