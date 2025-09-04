@@ -39,26 +39,27 @@ func _init() -> void:
 
 func _ready() -> void:
 	# Tile windows in editor
-	if SHOULD_TILE_IN_EDITOR && OS.has_feature("editor"):
-		var window := get_window()
-		var screen_i := DisplayServer.window_get_current_screen()
-		var screen := DisplayServer.screen_get_usable_rect(screen_i)
-		var y_mod := DisplayServer.window_get_size_with_decorations().y - DisplayServer.window_get_size().y - 10
-		window.size = DisplayServer.screen_get_usable_rect(screen_i).size / 2
-		window.size.y -= y_mod
-		match _instance_num:
-			0:
-				window.position.x = screen.position.x
-				window.position.y = screen.position.y + y_mod
-			1:
-				window.position.x = screen.position.x + window.size.x
-				window.position.y = screen.position.y + y_mod
-			2:
-				window.position.x = screen.position.x
-				window.position.y = screen.position.y + y_mod * 2 + window.size.y
-			3:
-				window.position.x = screen.position.x + window.size.x
-				window.position.y = screen.position.y + y_mod * 2 + window.size.y
+	if !OS.get_cmdline_args().has("--fullscreen"):
+		if SHOULD_TILE_IN_EDITOR && OS.has_feature("editor"):
+			var window := get_window()
+			var screen_i := DisplayServer.window_get_current_screen()
+			var screen := DisplayServer.screen_get_usable_rect(screen_i)
+			var y_mod := DisplayServer.window_get_size_with_decorations().y - DisplayServer.window_get_size().y - 10
+			window.size = DisplayServer.screen_get_usable_rect(screen_i).size / 2
+			window.size.y -= y_mod
+			match _instance_num:
+				0:
+					window.position.x = screen.position.x
+					window.position.y = screen.position.y + y_mod
+				1:
+					window.position.x = screen.position.x + window.size.x
+					window.position.y = screen.position.y + y_mod
+				2:
+					window.position.x = screen.position.x
+					window.position.y = screen.position.y + y_mod * 2 + window.size.y
+				3:
+					window.position.x = screen.position.x + window.size.x
+					window.position.y = screen.position.y + y_mod * 2 + window.size.y
 	# Run launch args
 	var args := OS.get_cmdline_args()
 	for arg in args:
