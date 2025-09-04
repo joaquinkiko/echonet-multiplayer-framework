@@ -9,9 +9,9 @@ const MAX_SERVER_TIME := 4294967295 # u32 max value
 
 const MAX_PEERS := 255 # Max u8
 
-const MAX_TIME_DESYNC := 1000
+const MAX_TIME_DESYNC := 10000
 
-const MAX_PEER_RTT := 1000
+const MAX_PEER_RTT := 1500
 
 ## Channels for sending data
 enum ServerChannels {
@@ -678,11 +678,13 @@ func handle_packet(packet: EchonetPacket) -> void:
 					var old_time := server_time
 					var server_loops: int = packet.current_tick / (MAX_SERVER_TIME / msec_per_tick)
 					_server_time = packet.time + get_server_latency()
+					_server_time -= msec_per_tick * 3
 					_server_time += MAX_SERVER_TIME * server_loops
 					print("Time Sync received. Adjusted by %smsec"%(server_time - old_time))
 					on_time_resynced.emit(server_time - old_time)
 				else:
 					_server_time = packet.time + get_server_latency()
+					_server_time -= msec_per_tick * 3
 					_tick_rate = packet.ticks_per_second
 					_tick = server_time / msec_per_tick
 					_next_tick_time = tick * msec_per_tick + msec_per_tick
