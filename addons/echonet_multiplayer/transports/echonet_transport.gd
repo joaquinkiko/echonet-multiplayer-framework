@@ -315,6 +315,7 @@ func init_client() -> bool:
 	_next_input_tick_time = 0
 	_next_service_time = 0
 	last_snapshot = null
+	_server_peer = null
 	stored_snapshots.clear()
 	client_ack_snapshots.clear()
 	stored_delta_snapshots.clear()
@@ -609,6 +610,8 @@ func handle_packet(packet: EchonetPacket) -> void:
 					client.uid = packet.uids.get(remote_id, 0)
 					if packet.admins.has(remote_id): client.is_admin = true
 					peer_connected(client)
+					if client.is_server: _server_peer = client
+				if server_peer == null: _server_peer = EchonetPeer.create_server()
 			else:
 				var client = EchonetPeer.create_client(packet.id)
 				client.nickname = packet.nicknames.get(packet.id, "")

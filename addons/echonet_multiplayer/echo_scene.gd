@@ -12,7 +12,7 @@ var node: Node
 var id: int
 var owner: EchonetPeer:
 	get: 
-		if _owner == null: return Echonet.transport.client_peers[1]
+		if _owner == null: return Echonet.transport.server_peer
 		return _owner
 	set(value): _owner = value
 var _owner: EchonetPeer
