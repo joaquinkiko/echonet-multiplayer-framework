@@ -54,3 +54,24 @@ static func delta_snapshot(base: EchoSnapshot, layer: EchoSnapshot) -> EchoSnaps
 		if base.world_state.get(n, null) != layer.world_state[n]:
 			delta.world_state[n] = layer.world_state[n]
 	return delta
+
+func prioritize() -> void:
+	var total_size := 0
+	var state_keys: Dictionary[int, PackedInt32Array]
+	for n in world_state.keys():
+		if !EchoScene.scenes.has(EchoNode.get_scene_id_from_combined_id(n)): continue
+		if !state_keys.has(EchoScene.scenes[EchoNode.get_scene_id_from_combined_id(n)].echo_nodes[EchoNode.get_node_id_from_combined_id(n)].priority_accumulator):
+			state_keys[EchoScene.scenes[EchoNode.get_scene_id_from_combined_id(n)].echo_nodes[EchoNode.get_node_id_from_combined_id(n)].priority_accumulator] = PackedInt32Array([])
+		state_keys[EchoScene.scenes[EchoNode.get_scene_id_from_combined_id(n)].echo_nodes[EchoNode.get_node_id_from_combined_id(n)].priority_accumulator].append(n)
+	var sorted_keys: PackedInt32Array = state_keys.keys()
+	sorted_keys.sort()
+	sorted_keys.reverse()
+	for i in sorted_keys:
+		for n in state_keys[i]:
+			if total_size + world_state[n].size() < Echonet.transport.MAX_SNAPSHOT_SIZE:
+				total_size += world_state[n].size()
+				EchoScene.scenes[EchoNode.get_scene_id_from_combined_id(n)].echo_nodes[EchoNode.get_node_id_from_combined_id(n)].priority_accumulator = 0
+			else:
+				print("!")
+				world_state.erase(n)
+				EchoScene.scenes[EchoNode.get_scene_id_from_combined_id(n)].echo_nodes[EchoNode.get_node_id_from_combined_id(n)].priority_accumulator += EchoScene.scenes[EchoNode.get_scene_id_from_combined_id(n)].echo_nodes[EchoNode.get_node_id_from_combined_id(n)].priority

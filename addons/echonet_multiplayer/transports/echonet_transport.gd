@@ -13,6 +13,8 @@ const MAX_TIME_DESYNC := 10000
 
 const MAX_PEER_RTT := 1500
 
+const MAX_SNAPSHOT_SIZE := 1400
+
 ## Channels for sending data
 enum ServerChannels {
 	MAIN = 0,
@@ -1156,14 +1158,20 @@ func decode_and_set_input(data: PackedByteArray, owner: EchonetPeer) -> void:
 func collect_state() -> void:
 	if !is_server: return
 	var new_snapshot := EchoSnapshot.new()
+	#var priority_snapshot := EchoSnapshot.new()
 	for n in EchoScene.scenes.keys():
 		for i in EchoScene.scenes[n].echo_nodes.keys():
 			new_snapshot.world_state[EchoScene.scenes[n].echo_nodes[i].get_combined_id()] = EchoScene.scenes[n].echo_nodes[i].get_encoded_state()
+			#if priority_snapshot.world_state.size() + EchoScene.scenes[n].echo_nodes[i].get_encoded_state().size() >= MAX_SNAPSHOT_SIZE: 
+			#	print("!")
+			#	continue
+			#priority_snapshot.world_state[EchoScene.scenes[n].echo_nodes[i].get_combined_id()] = EchoScene.scenes[n].echo_nodes[i].get_encoded_state()
 	last_snapshot = new_snapshot
 	stored_snapshots[tick] = new_snapshot
 	for n in client_peers:
 		if client_peers[n].is_self: continue
 		var delta_snapshot := EchoSnapshot.delta_snapshot(client_ack_snapshots.get(n, get_base_snapshot()), new_snapshot)
+		delta_snapshot.prioritize()
 		if delta_snapshot.world_state.is_empty(): return
 		stored_delta_snapshots[n][tick] = delta_snapshot
 		client_ack_ticks[n][tick] = false

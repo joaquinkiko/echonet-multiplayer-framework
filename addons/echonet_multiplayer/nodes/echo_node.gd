@@ -6,6 +6,9 @@ var id: int
 ## Parent [EchoScene]
 var parent_echo_scene: EchoScene
 
+## Priority level for state syncronization
+@export_range(1,100,1) var priority: int = 1
+
 @export_range(0.1,1,0.05) var interpolation_strength = 0.75
 
 ## List of valid [EchoFunc] sorted by method call name
@@ -20,6 +23,9 @@ var parent_echo_scene: EchoScene
 ## Goal state values to interpolate to
 var state_values: Dictionary[EchoVar, Variant]
 
+## Goal state values to interpolate to
+var priority_accumulator: int
+
 func _enter_tree() -> void:
 	parent_echo_scene = _find_parent_echo_scene()
 	assert(parent_echo_scene != null, "EchoNode entered tree with no parent EchoScene!")
@@ -32,6 +38,7 @@ func _exit_tree() -> void:
 
 func _physics_process(_sdelta: float) -> void:
 	if interpolation_strength >= 1: return
+	if Echonet.transport.server_peer == null: return
 	for state in state_values.keys():
 		state.set_var(self, lerp(state.get_var(self), state_values[state], interpolation_strength))
 
