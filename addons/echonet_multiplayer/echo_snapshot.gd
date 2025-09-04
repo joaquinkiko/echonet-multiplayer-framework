@@ -72,6 +72,5 @@ func prioritize() -> void:
 				total_size += world_state[n].size()
 				EchoScene.scenes[EchoNode.get_scene_id_from_combined_id(n)].echo_nodes[EchoNode.get_node_id_from_combined_id(n)].priority_accumulator = 0
 			else:
-				print("!")
 				world_state.erase(n)
 				EchoScene.scenes[EchoNode.get_scene_id_from_combined_id(n)].echo_nodes[EchoNode.get_node_id_from_combined_id(n)].priority_accumulator += EchoScene.scenes[EchoNode.get_scene_id_from_combined_id(n)].echo_nodes[EchoNode.get_node_id_from_combined_id(n)].priority
