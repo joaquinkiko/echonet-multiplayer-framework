@@ -47,6 +47,8 @@ enum EncodingType {
 ## Encoding type to use for parameter
 @export var encoding_type := EncodingType.VARIANT
 
+@export var owner_authoritative: bool
+
 ## Static method to encode value based on [EncodingType]
 static func encode_var(encoding: EncodingType, value: Variant) -> PackedByteArray:
 	var data: PackedByteArray
@@ -380,6 +382,7 @@ func get_var(source: Node) -> Variant:
 	return source.get_node(NodePath(path)).get_indexed(NodePath(NodePath(path).get_concatenated_subnames()).get_as_property_path())
 
 func set_var(source: Node, value: Variant) -> void:
+	if owner_authoritative && source.parent_echo_scene.owner.is_self: return
 	if !is_valid_path(source):
 		push_warning("EchoVar attempting to set invalid path: %s"%path)
 		return
