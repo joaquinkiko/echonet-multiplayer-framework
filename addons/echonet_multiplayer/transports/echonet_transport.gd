@@ -98,6 +98,7 @@ signal before_scene_change()
 signal on_scene_change_success()
 signal on_peer_scene_change(peer: EchonetPeer)
 signal on_peer_scene_change_failure(peer: EchonetPeer)
+signal on_peer_scene_change_late(peer: EchonetPeer)
 
 ## List of connected client-peers sorted by id (including self)
 var client_peers: Dictionary[int, EchonetPeer]:
@@ -508,7 +509,9 @@ func _check_for_successful_connection() -> void:
 			print("Connected successfully!")
 			if is_server: on_server_initialized.emit()
 			if is_client: on_connected_to_server.emit()
-			if is_server && is_client: on_peer_connected.emit(local_id)
+			if is_server && is_client: 
+				on_peer_connected.emit(local_id)
+				_server_load_initial_scene()
 			if !is_server && !is_client:
 				shutdown(DisconnectReason.INFO_REQUEST_COMPLETED)
 			return
@@ -712,14 +715,22 @@ func handle_packet(packet: EchonetPacket) -> void:
 							if !is_connected: return
 							await Engine.get_main_loop().process_frame
 					is_awaiting_scene_swap = false
+					client_message(InfoRequestPacket.new(InfoRequestPacket.RequestType.NOTIFICATION_LOADED_INITIAL_SCENE), ServerChannels.BACKEND, true)
 				else: 
 					shutdown(DisconnectReason.ERROR)
+			elif packet.current_scene_uid == 0:
+				client_message(InfoRequestPacket.new(InfoRequestPacket.RequestType.NOTIFICATION_LOADED_INITIAL_SCENE), ServerChannels.BACKEND, true)
 		EchonetPacket.PacketType.INFO_REQUEST:
 			packet = InfoRequestPacket.new_remote(packet)
 			if is_server:
 				packet = InfoRequestPacket.new_remote(packet)
 				if packet.request_type == InfoRequestPacket.RequestType.SERVER_INFO:
 					send_server_info(packet)
+				elif packet.request_type == InfoRequestPacket.RequestType.NOTIFICATION_LOADED_INITIAL_SCENE:
+					if client_peers.has(packet.sender.id): 
+						on_peer_scene_change_late.emit(packet.sender)
+					else: 
+						push_warning("Received notification of initial scene loading before receiving peer info")
 			else:
 				pass
 		EchonetPacket.PacketType.CHAT:
@@ -931,6 +942,35 @@ func set_main_scene(scene_uid: int, args := Array([])) -> bool:
 		shutdown(DisconnectReason.ERROR)
 		is_awaiting_scene_swap = false
 		return false
+
+func _server_load_initial_scene() -> void:
+	if !is_server: return
+	if current_scene_uid == 0:
+		on_peer_scene_change_late.emit(client_peers[local_id])
+		return
+	if !ResourceUID.has_id(current_scene_uid):
+		push_error("Unknown resource uid to set scene to: %s"%current_scene_uid)
+		shutdown(DisconnectReason.ERROR)
+		return
+	var scene: PackedScene = ResourceLoader.load(ResourceUID.get_id_path(current_scene_uid))
+	if scene == null: 
+		push_error("Setting main scene error loading resource uid %s"%current_scene_uid)
+		shutdown(DisconnectReason.ERROR)
+		return
+	is_awaiting_scene_swap = true
+	if Echonet.get_tree().change_scene_to_packed(scene) == OK:
+		for n in 2: await Engine.get_main_loop().process_frame
+		if Echonet.get_tree().current_scene.has_method("_on_scene_swap"): 
+			Echonet.get_tree().current_scene.call("_on_scene_swap", current_scene_args)
+		if Echonet.get_tree().current_scene.get("has_loaded") != null:
+			while !Echonet.get_tree().current_scene.get("has_loaded"):
+				if !is_connected: return
+				await Engine.get_main_loop().process_frame
+		is_awaiting_scene_swap = false
+		if is_client:
+			on_peer_scene_change_late.emit(client_peers[local_id])
+	else: 
+		shutdown(DisconnectReason.ERROR)
 
 func _set_main_scene_success(peer: EchonetPeer) -> void:
 	on_peer_scene_change.emit(peer)

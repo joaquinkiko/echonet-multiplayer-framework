@@ -4,6 +4,7 @@ class_name InfoRequestPacket extends EchonetPacket
 ## Type of data being requested
 enum RequestType {
 	SERVER_INFO = 1,
+	NOTIFICATION_LOADED_INITIAL_SCENE = 2,
 }
 
 ## Defines [RequestType] to sign packet with
