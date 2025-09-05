@@ -99,6 +99,9 @@ signal on_scene_change_success()
 signal on_peer_scene_change(peer: EchonetPeer)
 signal on_peer_scene_change_failure(peer: EchonetPeer)
 signal on_peer_scene_change_late(peer: EchonetPeer)
+signal client_before_scene_change()
+signal client_after_scene_change()
+signal client_after_initial_scene_load()
 
 ## List of connected client-peers sorted by id (including self)
 var client_peers: Dictionary[int, EchonetPeer]:
@@ -716,10 +719,12 @@ func handle_packet(packet: EchonetPacket) -> void:
 							await Engine.get_main_loop().process_frame
 					is_awaiting_scene_swap = false
 					client_message(InfoRequestPacket.new(InfoRequestPacket.RequestType.NOTIFICATION_LOADED_INITIAL_SCENE), ServerChannels.BACKEND, true)
+					client_after_initial_scene_load.emit()
 				else: 
 					shutdown(DisconnectReason.ERROR)
 			elif packet.current_scene_uid == 0:
 				client_message(InfoRequestPacket.new(InfoRequestPacket.RequestType.NOTIFICATION_LOADED_INITIAL_SCENE), ServerChannels.BACKEND, true)
+				client_after_initial_scene_load.emit()
 		EchonetPacket.PacketType.INFO_REQUEST:
 			packet = InfoRequestPacket.new_remote(packet)
 			if is_server:
@@ -875,6 +880,7 @@ func handle_packet(packet: EchonetPacket) -> void:
 				shutdown(DisconnectReason.POOR_CONNECTION)
 				return
 			is_awaiting_scene_swap = true
+			client_before_scene_change.emit()
 			if Echonet.get_tree().change_scene_to_packed(scene) == OK:
 				current_scene_uid = packet.scene_uid
 				current_scene_args = packet.args
@@ -887,6 +893,7 @@ func handle_packet(packet: EchonetPacket) -> void:
 						await Engine.get_main_loop().process_frame
 				is_awaiting_scene_swap = false
 				client_message(EventAckPacket.new(packet.ack_code), ServerChannels.MAIN_RELIABLE, true)
+				client_after_scene_change.emit()
 			else: 
 				shutdown(DisconnectReason.ERROR)
 		EchonetPacket.PacketType.EVENT_ACK:
