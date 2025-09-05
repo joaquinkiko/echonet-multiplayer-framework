@@ -285,6 +285,7 @@ var pending_event_ids: PackedInt32Array
 var pending_peer: Dictionary[EchonetPeer, PackedInt32Array]
 
 var is_awaiting_scene_swap: bool
+var server_has_completed_scene_swap: bool
 
 ## Initialize connection as Client-Server
 func init_server() -> bool:
@@ -566,6 +567,18 @@ func peer_disconnected(peer_id: int) -> void:
 		stored_delta_snapshots.erase(peer_id)
 		client_ack_ticks.erase(peer_id)
 	print("Lost connection: ", client_peers.get(peer_id, EchonetPeer.placeholder()))
+	var peer: EchonetPeer = client_peers.get(peer_id, null)
+	var peers_pending_events: PackedInt32Array
+	if peer != null && pending_peer.has(peer): 
+		peers_pending_events = pending_peer[peer]
+		pending_peer.erase(peer)
+	for event in peers_pending_events:
+		var still_pending: bool
+		for p in pending_peer:
+			if pending_peer[p].has(event):
+				still_pending = true
+				break
+		if !still_pending && pending_event_ids.has(event): pending_event_ids.remove_at(pending_event_ids.find(event))
 	_client_peers.erase(peer_id)
 
 ## Called after a client joins to initialize any spawning
@@ -823,6 +836,10 @@ func handle_packet(packet: EchonetPacket) -> void:
 				for n in 2: await Engine.get_main_loop().process_frame
 				if Echonet.get_tree().current_scene.has_method("_on_scene_swap"): 
 					Echonet.get_tree().current_scene.call("_on_scene_swap", packet.args)
+				if Echonet.get_tree().current_scene.get("has_loaded") != null:
+					while !Echonet.get_tree().current_scene.get("has_loaded"):
+						if !is_connected: return
+						await Engine.get_main_loop().process_frame
 				client_message(EventAckPacket.new(packet.ack_code), ServerChannels.MAIN_RELIABLE, true)
 			else: 
 				shutdown(DisconnectReason.ERROR)
@@ -856,6 +873,7 @@ func set_main_scene(scene_uid: int, args := Array([])) -> bool:
 		return false
 	var event_id := _get_new_event_id()
 	is_awaiting_scene_swap = true
+	server_has_completed_scene_swap = false
 	before_scene_change.emit()
 	server_broadcast(SceneSwapPacket.new(scene_uid, event_id, args), ServerChannels.MAIN_RELIABLE, true)
 	_await_new_event_ack(event_id, _set_main_scene_success, _set_main_scene_failure, _set_main_scene_final_success)
@@ -863,7 +881,13 @@ func set_main_scene(scene_uid: int, args := Array([])) -> bool:
 		for n in 2: await Engine.get_main_loop().process_frame
 		if Echonet.get_tree().current_scene.has_method("_on_scene_swap"): 
 			Echonet.get_tree().current_scene.call("_on_scene_swap", args)
+		if Echonet.get_tree().current_scene.get("has_loaded") != null:
+			while !Echonet.get_tree().current_scene.get("has_loaded"):
+				if !is_connected: return false
+				await Engine.get_main_loop().process_frame
 		if client_peers.has(local_id): on_peer_scene_change.emit(client_peers[local_id])
+		if !pending_event_ids.has(event_id): _set_main_scene_final_success()
+		server_has_completed_scene_swap = true
 		return true
 	else:
 		print("Failed to swap main scene")
@@ -926,7 +950,7 @@ func _peer_await_event_ack(peer: EchonetPeer, event_id: int, success: Callable, 
 				break
 	if !event_still_pending:
 		if pending_event_ids.has(event_id): pending_event_ids.remove_at(pending_event_ids.find(event_id))
-		if is_connected: 
+		if is_connected && server_has_completed_scene_swap: 
 			final_success.call()
 
 ## Spawns an object and returns it's ID
