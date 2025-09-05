@@ -287,6 +287,9 @@ var pending_peer: Dictionary[EchonetPeer, PackedInt32Array]
 var is_awaiting_scene_swap: bool
 var server_has_completed_scene_swap: bool
 
+var current_scene_uid: int
+var current_scene_args: Array
+
 ## Initialize connection as Client-Server
 func init_server() -> bool:
 	if is_connected:
@@ -670,6 +673,7 @@ func handle_packet(packet: EchonetPacket) -> void:
 		EchonetPacket.PacketType.SERVER_INFO:
 			if is_server: return
 			if !_connection_successful: _connection_successful = true
+			var first_info_packet := !_has_server_info
 			_has_server_info = true
 			packet = ServerInfoPacket.new_remote(packet)
 			if !is_client:
@@ -686,6 +690,30 @@ func handle_packet(packet: EchonetPacket) -> void:
 			if packet.server_status == ServerInfoPacket.ServerStatus.NON_JOINABLE:
 				is_joinable = false
 			else: is_joinable = true
+			if first_info_packet && packet.current_scene_uid != 0:
+				if !ResourceUID.has_id(packet.current_scene_uid):
+					push_error("Unknown resource uid to set scene to: %s"%packet.current_scene_uid)
+					shutdown(DisconnectReason.ERROR)
+					return
+				var scene: PackedScene = ResourceLoader.load(ResourceUID.get_id_path(packet.current_scene_uid))
+				if scene == null: 
+					push_error("Setting main scene error loading resource uid %s"%packet.current_scene_uid)
+					shutdown(DisconnectReason.ERROR)
+					return
+				is_awaiting_scene_swap = true
+				if Echonet.get_tree().change_scene_to_packed(scene) == OK:
+					current_scene_uid = packet.current_scene_uid
+					current_scene_args = packet.current_scene_args
+					for n in 2: await Engine.get_main_loop().process_frame
+					if Echonet.get_tree().current_scene.has_method("_on_scene_swap"): 
+						Echonet.get_tree().current_scene.call("_on_scene_swap", packet.current_scene_args)
+					if Echonet.get_tree().current_scene.get("has_loaded") != null:
+						while !Echonet.get_tree().current_scene.get("has_loaded"):
+							if !is_connected: return
+							await Engine.get_main_loop().process_frame
+					is_awaiting_scene_swap = false
+				else: 
+					shutdown(DisconnectReason.ERROR)
 		EchonetPacket.PacketType.INFO_REQUEST:
 			packet = InfoRequestPacket.new_remote(packet)
 			if is_server:
@@ -832,7 +860,13 @@ func handle_packet(packet: EchonetPacket) -> void:
 				push_error("Setting main scene error loading resource uid %s"%packet.scene_uid)
 				shutdown(DisconnectReason.ERROR)
 				return
+			if is_awaiting_scene_swap:
+				shutdown(DisconnectReason.POOR_CONNECTION)
+				return
+			is_awaiting_scene_swap = true
 			if Echonet.get_tree().change_scene_to_packed(scene) == OK:
+				current_scene_uid = packet.scene_uid
+				current_scene_args = packet.args
 				for n in 2: await Engine.get_main_loop().process_frame
 				if Echonet.get_tree().current_scene.has_method("_on_scene_swap"): 
 					Echonet.get_tree().current_scene.call("_on_scene_swap", packet.args)
@@ -840,6 +874,7 @@ func handle_packet(packet: EchonetPacket) -> void:
 					while !Echonet.get_tree().current_scene.get("has_loaded"):
 						if !is_connected: return
 						await Engine.get_main_loop().process_frame
+				is_awaiting_scene_swap = false
 				client_message(EventAckPacket.new(packet.ack_code), ServerChannels.MAIN_RELIABLE, true)
 			else: 
 				shutdown(DisconnectReason.ERROR)
@@ -878,6 +913,8 @@ func set_main_scene(scene_uid: int, args := Array([])) -> bool:
 	server_broadcast(SceneSwapPacket.new(scene_uid, event_id, args), ServerChannels.MAIN_RELIABLE, true)
 	_await_new_event_ack(event_id, _set_main_scene_success, _set_main_scene_failure, _set_main_scene_final_success)
 	if Echonet.get_tree().change_scene_to_packed(scene) == OK:
+		current_scene_uid = scene_uid
+		current_scene_args = args
 		for n in 2: await Engine.get_main_loop().process_frame
 		if Echonet.get_tree().current_scene.has_method("_on_scene_swap"): 
 			Echonet.get_tree().current_scene.call("_on_scene_swap", args)
@@ -1040,7 +1077,7 @@ func _create_server_info_packet() -> ServerInfoPacket:
 	var status : ServerInfoPacket.ServerStatus = ServerInfoPacket.ServerStatus.OPEN
 	if !is_joinable: status = ServerInfoPacket.ServerStatus.NON_JOINABLE
 	elif uid_whitelist.size() > 0: status = ServerInfoPacket.ServerStatus.WHITELIST_ONLY
-	var packet := ServerInfoPacket.new(server_name, client_peers.size(), max_peers, status)
+	var packet := ServerInfoPacket.new(server_name, client_peers.size(), max_peers, status, current_scene_uid, current_scene_args)
 	return packet
 
 ## Sends chat message over the network-- if [param audience] is null, sends to all
